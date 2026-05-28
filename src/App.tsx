@@ -13,6 +13,7 @@ import { MainOverviewTab } from './components/MainOverviewTab';
 import { AnnualLeaveTab } from './components/AnnualLeaveTab';
 import { BusinessTripTab } from './components/BusinessTripTab';
 import { EmployeeSummaryTab } from './components/EmployeeSummaryTab';
+import { TodayUncheckedTab } from './components/TodayUncheckedTab';
 import { Layers, CalendarDays, ClipboardCheck, ArrowRightLeft, Info, HelpCircle, Users } from 'lucide-react';
 import {
   isSupabaseConfigured,
@@ -323,6 +324,93 @@ export default function App() {
     return Math.round((normalCount / totalWorking) * 100);
   }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
 
+  // 1. Gather all unique active employees (excluding '강남구청점')
+  const employees = useMemo(() => {
+    const map = new Map<string, { sapId: string; name: string; department: string; position: string }>();
+    records.forEach(r => {
+      if (r.sapId && !r.department?.includes('강남구청점')) {
+        map.set(r.sapId.trim(), {
+          sapId: r.sapId.trim(),
+          name: r.name.trim(),
+          department: r.department.trim(),
+          position: r.position.trim(),
+        });
+      }
+    });
+    commuteRecords.forEach(c => {
+      if (c.sapId && !c.department?.includes('강남구청점')) {
+        map.set(c.sapId.trim(), {
+          sapId: c.sapId.trim(),
+          name: c.name.trim(),
+          department: c.department.trim(),
+          position: c.position.trim(),
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [records, commuteRecords]);
+
+  // 2. Checked-in SAP IDs for simulatedDate (today)
+  const todayCheckedInSapIds = useMemo(() => {
+    const targetDateStr = simulatedDate.replace(/-/g, '');
+    const todayCommutes = commuteRecords.filter(rec => rec.date === targetDateStr);
+    return new Set(todayCommutes.map(c => c.sapId.trim()));
+  }, [commuteRecords, simulatedDate]);
+
+  // 3. Approved leave/trip SAP IDs for simulatedDate (today)
+  const todayAbsentSapIds = useMemo(() => {
+    return new Set(
+      records
+        .filter(rec => {
+          if (rec.status !== '결재종결') return false;
+          const start = rec.startDate;
+          const end = rec.endDate || rec.startDate;
+          return simulatedDate >= start && simulatedDate <= end;
+        })
+        .map(rec => rec.sapId.trim())
+    );
+  }, [records, simulatedDate]);
+
+  // 4. Employees who are not checked in AND not officially absent (matching active filters)
+  const todayUncheckedEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      if (todayCheckedInSapIds.has(emp.sapId)) return false;
+      if (todayAbsentSapIds.has(emp.sapId)) return false;
+      
+      if (selectedDept !== 'all' && emp.department !== selectedDept) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = emp.name.toLowerCase().includes(q);
+        const matchesId = emp.sapId.toLowerCase().includes(q);
+        const matchesDept = emp.department.toLowerCase().includes(q);
+        if (!matchesName && !matchesId && !matchesDept) return false;
+      }
+      return true;
+    });
+  }, [employees, todayCheckedInSapIds, todayAbsentSapIds, selectedDept, searchQuery]);
+
+  // 5. Official absentees for simulatedDate (today) matching active filters
+  const todayOfficialAbsentees = useMemo(() => {
+    return records.filter(rec => {
+      if (rec.status !== '결재종결') return false;
+      const start = rec.startDate;
+      const end = rec.endDate || rec.startDate;
+      const matchesDate = simulatedDate >= start && simulatedDate <= end;
+      if (!matchesDate) return false;
+
+      if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = emp.name.toLowerCase().includes(q);
+        const matchesId = emp.sapId.toLowerCase().includes(q);
+        const matchesDept = emp.department.toLowerCase().includes(q);
+        if (!matchesName && !matchesId && !matchesDept) return false;
+      }
+      return true;
+    });
+  }, [records, simulatedDate, selectedDept, searchQuery]);
+
+
   // Counts of leaves and trips in the current filtered subset
   const leaveStats = useMemo(() => {
     let leaves = 0;
@@ -552,6 +640,24 @@ export default function App() {
                   {new Set(filteredRecords.map(r => r.sapId)).size}
                 </span>
               </button>
+
+              <button
+                id="tab-btn-5"
+                onClick={() => setActiveTab(5)}
+                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                  activeTab === 5
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                }`}
+              >
+                <ClipboardCheck className={`w-4 h-4 ${activeTab === 5 ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>금일 미출근 현황 (출근 독려)</span>
+                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                  activeTab === 5 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {todayUncheckedEmployees.length}
+                </span>
+              </button>
             </nav>
           </div>
 
@@ -616,6 +722,15 @@ export default function App() {
                 setCustomStartDate={setCustomStartDate}
                 customEndDate={customEndDate}
                 setCustomEndDate={setCustomEndDate}
+              />
+            )}
+
+            {activeTab === 5 && (
+              <TodayUncheckedTab 
+                uncheckedEmployees={todayUncheckedEmployees}
+                officialAbsentees={todayOfficialAbsentees}
+                simulatedDate={simulatedDate}
+                todayAttendanceRate={todayAttendanceRate}
               />
             )}
           </div>
