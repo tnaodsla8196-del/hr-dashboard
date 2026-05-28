@@ -401,9 +401,9 @@ export default function App() {
       if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = emp.name.toLowerCase().includes(q);
-        const matchesId = emp.sapId.toLowerCase().includes(q);
-        const matchesDept = emp.department.toLowerCase().includes(q);
+        const matchesName = rec.name.toLowerCase().includes(q);
+        const matchesId = rec.sapId.toLowerCase().includes(q);
+        const matchesDept = rec.department.toLowerCase().includes(q);
         if (!matchesName && !matchesId && !matchesDept) return false;
       }
       return true;
