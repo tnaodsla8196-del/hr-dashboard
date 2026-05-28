@@ -23,6 +23,11 @@ import {
   upsertCommuteRecords
 } from './supabaseClient';
 
+const RETIRED_EMPLOYEES: Record<string, string> = {
+  '라현식': '2026-04-30'
+};
+
+
 export default function App() {
   // Main state holding the list of all active attendance records
   const [records, setRecords] = useState<AttendanceRecord[]>(initialAttendanceData);
@@ -291,6 +296,12 @@ export default function App() {
         return;
       }
 
+      // 퇴사자 제외
+      const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+      if (retirementDate && simulatedDate >= retirementDate) {
+        return;
+      }
+
       // Apply department filter if active
       if (selectedDept !== 'all' && rec.department !== selectedDept) {
         return;
@@ -324,11 +335,16 @@ export default function App() {
     return Math.round((normalCount / totalWorking) * 100);
   }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
 
-  // 1. Gather all unique active employees (excluding '강남구청점')
+  // 1. Gather all unique active employees (excluding '강남구청점' and retired employees after their retirement date)
   const employees = useMemo(() => {
     const map = new Map<string, { sapId: string; name: string; department: string; position: string }>();
     records.forEach(r => {
       if (r.sapId && !r.department?.includes('강남구청점')) {
+        // 퇴사자 제외 조건
+        const retirementDate = RETIRED_EMPLOYEES[r.name.trim()];
+        if (retirementDate && simulatedDate >= retirementDate) {
+          return;
+        }
         map.set(r.sapId.trim(), {
           sapId: r.sapId.trim(),
           name: r.name.trim(),
@@ -339,6 +355,11 @@ export default function App() {
     });
     commuteRecords.forEach(c => {
       if (c.sapId && !c.department?.includes('강남구청점')) {
+        // 퇴사자 제외 조건
+        const retirementDate = RETIRED_EMPLOYEES[c.name.trim()];
+        if (retirementDate && simulatedDate >= retirementDate) {
+          return;
+        }
         map.set(c.sapId.trim(), {
           sapId: c.sapId.trim(),
           name: c.name.trim(),
@@ -348,7 +369,7 @@ export default function App() {
       }
     });
     return Array.from(map.values());
-  }, [records, commuteRecords]);
+  }, [records, commuteRecords, simulatedDate]);
 
   // 2. Checked-in SAP IDs for simulatedDate (today)
   const todayCheckedInSapIds = useMemo(() => {
@@ -398,6 +419,10 @@ export default function App() {
       const matchesDate = simulatedDate >= start && simulatedDate <= end;
       if (!matchesDate) return false;
 
+      // 퇴사자 제외
+      const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+      if (retirementDate && simulatedDate >= retirementDate) return false;
+
       if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -409,6 +434,44 @@ export default function App() {
       return true;
     });
   }, [records, simulatedDate, selectedDept, searchQuery]);
+
+  // 6. Checked-in employees list for simulatedDate (today) matching active filters
+  const todayCheckedInEmployees = useMemo(() => {
+    const targetDateStr = simulatedDate.replace(/-/g, '');
+    const todayCommutes = commuteRecords.filter(rec => rec.date === targetDateStr);
+    
+    return todayCommutes
+      .filter(rec => {
+        // Exclude Gangnam-gu Office
+        if (rec.department && rec.department.includes('강남구청점')) return false;
+
+        // Exclude retired employees
+        const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+        if (retirementDate && simulatedDate >= retirementDate) return false;
+
+        // Apply department filter
+        if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
+        
+        // Apply search query filter
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesName = rec.name.toLowerCase().includes(q);
+          const matchesId = rec.sapId.toLowerCase().includes(q);
+          const matchesDept = rec.department.toLowerCase().includes(q);
+          if (!matchesName && !matchesId && !matchesDept) return false;
+        }
+        return true;
+      })
+      .map(rec => ({
+        sapId: rec.sapId,
+        name: rec.name,
+        department: rec.department,
+        position: rec.position,
+        startTime: rec.startTime,
+        endTime: rec.endTime,
+        type: rec.type, // 정상, 지각 등
+      }));
+  }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
 
 
   // Counts of leaves and trips in the current filtered subset
@@ -729,6 +792,7 @@ export default function App() {
               <TodayUncheckedTab 
                 uncheckedEmployees={todayUncheckedEmployees}
                 officialAbsentees={todayOfficialAbsentees}
+                checkedInEmployees={todayCheckedInEmployees}
                 simulatedDate={simulatedDate}
                 todayAttendanceRate={todayAttendanceRate}
               />

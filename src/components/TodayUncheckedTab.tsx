@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Send, CheckCircle2, AlertTriangle, UserMinus, CalendarCheck, HelpCircle, Bell } from 'lucide-react';
+import { Send, CheckCircle2, AlertTriangle, UserMinus, CalendarCheck, HelpCircle, Bell, Clock } from 'lucide-react';
 import { AttendanceRecord } from '../types';
 
 interface UncheckedEmployee {
@@ -14,9 +14,20 @@ interface UncheckedEmployee {
   position: string;
 }
 
+interface CheckedInEmployee {
+  sapId: string;
+  name: string;
+  department: string;
+  position: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+}
+
 interface TodayUncheckedTabProps {
   uncheckedEmployees: UncheckedEmployee[];
   officialAbsentees: AttendanceRecord[];
+  checkedInEmployees: CheckedInEmployee[];
   simulatedDate: string;
   todayAttendanceRate: number;
 }
@@ -24,21 +35,21 @@ interface TodayUncheckedTabProps {
 export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
   uncheckedEmployees,
   officialAbsentees,
+  checkedInEmployees,
   simulatedDate,
   todayAttendanceRate
 }) => {
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [rightTab, setRightTab] = useState<'checkedIn' | 'absent'>('checkedIn');
 
   const handleSendReminder = (empName: string, sapId: string) => {
     setSendingId(sapId);
     
-    // Simulate API call with delay
     setTimeout(() => {
       setSendingId(null);
       setNotificationToast(`📢 [${empName} ${sapId}]님에게 알림톡을 성공적으로 전송했습니다!\n(메시지: "금일 출근 기록이 확인되지 않습니다. 늦게라도 출근체크를 진행해주세요.")`);
       
-      // Auto-hide toast after 4 seconds
       setTimeout(() => {
         setNotificationToast(null);
       }, 4000);
@@ -77,12 +88,19 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
       )}
 
       {/* Summary Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs text-center flex flex-col justify-center items-center">
           <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">금일 미출근 (독려 대상)</span>
           <div className="flex items-baseline gap-1">
             <span className="text-3xl font-bold font-mono text-rose-600 font-display">{uncheckedEmployees.length}</span>
             <span className="text-sm text-rose-500 font-bold">명</span>
+          </div>
+        </div>
+        <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs text-center flex flex-col justify-center items-center">
+          <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">금일 출근 완료</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-bold font-mono text-emerald-600 font-display">{checkedInEmployees.length}</span>
+            <span className="text-sm text-emerald-500 font-bold">명</span>
           </div>
         </div>
         <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs text-center flex flex-col justify-center items-center">
@@ -95,8 +113,8 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
         <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs text-center flex flex-col justify-center items-center">
           <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">연동 출근율 (강남구청점 제외)</span>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold font-mono text-emerald-600 font-display">{todayAttendanceRate}</span>
-            <span className="text-sm text-emerald-500 font-bold">%</span>
+            <span className="text-3xl font-bold font-mono text-indigo-600 font-display">{todayAttendanceRate}</span>
+            <span className="text-sm text-indigo-500 font-bold">%</span>
           </div>
         </div>
       </div>
@@ -182,73 +200,149 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Official Absentees (Leave / Trip) */}
+        {/* Right Side: Tabbed Checked-in / Absentees list */}
         <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="p-5 border-b border-slate-200/80 bg-slate-50/50 flex items-center justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <CalendarCheck className="w-4 h-4 text-blue-500" />
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight font-display">오늘의 공식 휴가/출장 자</h3>
-                </div>
-                <p className="text-xs text-slate-500">결재 완료된 상신건이 있는 인원으로, 금일 정상 출근 의무 제외자입니다.</p>
-              </div>
+            {/* Header Tabs */}
+            <div className="flex border-b border-slate-200 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setRightTab('checkedIn')}
+                className={`flex-1 py-4 px-4 text-xs font-bold text-center border-b-2 transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  rightTab === 'checkedIn'
+                    ? 'border-emerald-600 text-emerald-700 bg-white font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/30'
+                }`}
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${rightTab === 'checkedIn' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span>출근 완료 ({checkedInEmployees.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab('absent')}
+                className={`flex-1 py-4 px-4 text-xs font-bold text-center border-b-2 transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  rightTab === 'absent'
+                    ? 'border-blue-600 text-blue-700 bg-white font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/30'
+                }`}
+              >
+                <CalendarCheck className={`w-3.5 h-3.5 ${rightTab === 'absent' ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>휴가/출장 자 ({officialAbsentees.length})</span>
+              </button>
             </div>
 
-            {officialAbsentees.length === 0 ? (
-              <div className="p-16 text-center text-slate-450 space-y-4">
-                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto border border-slate-100">
-                  <CalendarCheck className="w-5 h-5 text-slate-400" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-slate-800">지정일 공식 부재자가 없습니다.</p>
-                  <p className="text-[11px] text-slate-400">모든 임직원이 현장 출근 대상자입니다.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse table-auto">
-                  <thead>
-                    <tr className="bg-slate-50/50 text-[10.5px] font-bold text-slate-500 border-b border-slate-200 select-none">
-                      <th className="px-5 py-3">성명</th>
-                      <th className="px-5 py-3">부서</th>
-                      <th className="px-5 py-3">근태 구분</th>
-                      <th className="px-5 py-3 text-right">문서 상태</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {officialAbsentees.map((abs, idx) => {
-                      const t = abs.type?.trim();
-                      const isLeave = t === '연차' || t === '오전반차' || t === '오후반차';
-                      return (
-                        <tr key={`${abs.sapId}-${idx}`} className="hover:bg-slate-50/50 transition">
-                          <td className="px-5 py-3.5">
-                            <span className="font-bold text-slate-900">{abs.name}</span>
-                            <span className="text-[10px] text-slate-400 ml-1.5 font-mono">{abs.sapId}</span>
-                          </td>
-                          <td className="px-5 py-3.5 text-slate-600 font-medium">{abs.department}</td>
-                          <td className="px-5 py-3.5">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isLeave ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'
-                            }`}>
-                              {abs.type}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5 text-right font-bold text-emerald-600 text-[10.5px] uppercase font-mono">
-                            {abs.status}
-                          </td>
+            {/* Right Tab 1: Checked-in Employees */}
+            {rightTab === 'checkedIn' && (
+              <div>
+                {checkedInEmployees.length === 0 ? (
+                  <div className="p-16 text-center text-slate-450 space-y-4">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto border border-slate-100">
+                      <Clock className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-800">금일 출근 완료한 인원이 없습니다.</p>
+                      <p className="text-[11px] text-slate-400">조회 조건 또는 동기화 상태를 확인해 주세요.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse table-auto">
+                      <thead>
+                        <tr className="bg-slate-50/20 text-[10.5px] font-bold text-slate-500 border-b border-slate-200 select-none">
+                          <th className="px-4 py-2.5">성명</th>
+                          <th className="px-4 py-2.5">부서</th>
+                          <th className="px-4 py-2.5">출퇴근시각</th>
+                          <th className="px-4 py-2.5 text-right font-medium">상태</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {checkedInEmployees.map(emp => (
+                          <tr key={emp.sapId} className="hover:bg-slate-50/50 transition">
+                            <td className="px-4 py-3">
+                              <span className="font-bold text-slate-900">{emp.name}</span>
+                              <span className="text-[10px] text-slate-400 ml-1 font-mono font-medium">({emp.position})</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-650 font-medium truncate max-w-[100px]">{emp.department}</td>
+                            <td className="px-4 py-3 font-mono font-semibold text-slate-500">
+                              {emp.startTime || '--:--'} ~ {emp.endTime || '--:--'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                emp.type === '지각'
+                                  ? 'bg-rose-50 text-rose-700'
+                                  : 'bg-emerald-50 text-emerald-700'
+                              }`}>
+                                {emp.type || '출근'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Right Tab 2: Official Absentees (Leave / Trip) */}
+            {rightTab === 'absent' && (
+              <div>
+                {officialAbsentees.length === 0 ? (
+                  <div className="p-16 text-center text-slate-450 space-y-4">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto border border-slate-100">
+                      <CalendarCheck className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-800">지정일 공식 부재자가 없습니다.</p>
+                      <p className="text-[11px] text-slate-400">모든 임직원이 현장 출근 대상자입니다.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse table-auto">
+                      <thead>
+                        <tr className="bg-slate-50/20 text-[10.5px] font-bold text-slate-500 border-b border-slate-200 select-none">
+                          <th className="px-4 py-2.5">성명</th>
+                          <th className="px-4 py-2.5">부서</th>
+                          <th className="px-4 py-2.5">근태 구분</th>
+                          <th className="px-4 py-2.5 text-right font-medium">상태</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {officialAbsentees.map((abs, idx) => {
+                          const t = abs.type?.trim();
+                          const isLeave = t === '연차' || t === '오전반차' || t === '오후반차';
+                          return (
+                            <tr key={`${abs.sapId}-${idx}`} className="hover:bg-slate-50/50 transition">
+                              <td className="px-4 py-3">
+                                <span className="font-bold text-slate-900">{abs.name}</span>
+                                <span className="text-[10px] text-slate-400 ml-1 font-mono">({abs.position})</span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-650 font-medium truncate max-w-[100px]">{abs.department}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  isLeave ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'
+                                }`}>
+                                  {abs.type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600 text-[10px] uppercase font-mono">
+                                {abs.status}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <div className="p-4 bg-slate-50 border-t border-slate-150 flex items-center gap-1.5 text-[10px] text-slate-450 font-medium">
-            <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-            <span>이 목록을 확인하여 미출근자에 포함되지 않은 인원의 상신 내역을 역검증(Cross-check)할 수 있습니다.</span>
+          <div className="p-4 bg-slate-50 border-t border-slate-150 flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>출근자 및 부재자 탭을 선택하여 당일 출퇴근 현황을 교차 검증(Cross-check)할 수 있습니다.</span>
           </div>
         </div>
 
