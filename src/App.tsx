@@ -435,15 +435,15 @@ export default function App() {
       }));
   }, [records, commuteRecords, allEmployees, retiredEmployees, simulatedDate]);
 
-  // 2. Checked-in SAP IDs for simulatedDate (today)
-  const todayCheckedInSapIds = useMemo(() => {
+  // 2. Checked-in Names for simulatedDate (today)
+  const todayCheckedInNames = useMemo(() => {
     const targetDateStr = simulatedDate.replace(/-/g, '');
     const todayCommutes = commuteRecords.filter(rec => rec.date === targetDateStr);
-    return new Set(todayCommutes.map(c => c.sapId.trim()));
+    return new Set(todayCommutes.map(c => c.name.trim()));
   }, [commuteRecords, simulatedDate]);
 
-  // 3. Approved leave/trip SAP IDs for simulatedDate (today)
-  const todayAbsentSapIds = useMemo(() => {
+  // 3. Approved leave/trip Names for simulatedDate (today)
+  const todayAbsentNames = useMemo(() => {
     return new Set(
       records
         .filter(rec => {
@@ -452,15 +452,15 @@ export default function App() {
           const end = rec.endDate || rec.startDate;
           return simulatedDate >= start && simulatedDate <= end;
         })
-        .map(rec => rec.sapId.trim())
+        .map(rec => rec.name.trim())
     );
   }, [records, simulatedDate]);
 
   // 4. Employees who are not checked in AND not officially absent (matching active filters)
   const todayUncheckedEmployees = useMemo(() => {
     return employees.filter(emp => {
-      if (todayCheckedInSapIds.has(emp.sapId)) return false;
-      if (todayAbsentSapIds.has(emp.sapId)) return false;
+      if (todayCheckedInNames.has(emp.name.trim())) return false;
+      if (todayAbsentNames.has(emp.name.trim())) return false;
       
       if (selectedDept !== 'all' && emp.department !== selectedDept) return false;
       if (searchQuery.trim()) {
@@ -472,7 +472,7 @@ export default function App() {
       }
       return true;
     });
-  }, [employees, todayCheckedInSapIds, todayAbsentSapIds, selectedDept, searchQuery]);
+  }, [employees, todayCheckedInNames, todayAbsentNames, selectedDept, searchQuery]);
 
   // 5. Official absentees for simulatedDate (today) matching active filters
   const todayOfficialAbsentees = useMemo(() => {
