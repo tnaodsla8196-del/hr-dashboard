@@ -323,8 +323,8 @@ export default function App() {
     let lateCount = 0;
     
     todayCommutes.forEach(rec => {
-      // 강남구청점 인원은 현장직이라 지표에서 제외
-      if (rec.department && rec.department.includes('강남구청점')) {
+      // 강남구청점 및 전환관리파트 인원은 지표에서 제외
+      if (rec.department && (rec.department.includes('강남구청점') || rec.department.includes('전환관리파트'))) {
         return;
       }
 
@@ -363,7 +363,8 @@ export default function App() {
         if (!isNaN(hours) && !isNaN(minutes)) {
           const timeInMinutes = hours * 60 + minutes;
           const isCenter = rec.department && rec.department.includes('센터');
-          const limitMinutes = isCenter ? 600 : 540;
+          const isStartupTeam = rec.department && rec.department.includes('창업지원팀');
+          const limitMinutes = (isCenter || isStartupTeam) ? 600 : 540;
           if (timeInMinutes <= limitMinutes) {
             normalCount++;
           } else {
@@ -387,7 +388,7 @@ export default function App() {
     if (allEmployees.length === 0) {
       const map = new Map<string, { sapId: string; name: string; department: string; position: string }>();
       records.forEach(r => {
-        if (r.sapId && !r.department?.includes('강남구청점')) {
+        if (r.sapId && !r.department?.includes('강남구청점') && !r.department?.includes('전환관리파트')) {
           const retirementDate = retiredEmployees[r.name.trim()];
           if (retirementDate && simulatedDate >= retirementDate) return;
           map.set(r.sapId.trim(), {
@@ -399,7 +400,7 @@ export default function App() {
         }
       });
       commuteRecords.forEach(c => {
-        if (c.sapId && !c.department?.includes('강남구청점')) {
+        if (c.sapId && !c.department?.includes('강남구청점') && !c.department?.includes('전환관리파트')) {
           const retirementDate = retiredEmployees[c.name.trim()];
           if (retirementDate && simulatedDate >= retirementDate) return;
           map.set(c.sapId.trim(), {
@@ -415,8 +416,8 @@ export default function App() {
 
     return allEmployees
       .filter(emp => {
-        // Exclude Gangnam-gu Office
-        if (emp.department && emp.department.includes('강남구청점')) return false;
+        // Exclude Gangnam-gu Office and Conversion Management Part
+        if (emp.department && (emp.department.includes('강남구청점') || emp.department.includes('전환관리파트'))) return false;
 
         // Exclude retired employees
         const retirementDate = retiredEmployees[emp.name.trim()];
@@ -503,8 +504,8 @@ export default function App() {
     
     return todayCommutes
       .filter(rec => {
-        // Exclude Gangnam-gu Office
-        if (rec.department && rec.department.includes('강남구청점')) return false;
+        // Exclude Gangnam-gu Office and Conversion Management Part
+        if (rec.department && (rec.department.includes('강남구청점') || rec.department.includes('전환관리파트'))) return false;
 
         // Exclude retired employees
         const retirementDate = retiredEmployees[rec.name.trim()];
@@ -538,7 +539,8 @@ export default function App() {
           if (!isNaN(hours) && !isNaN(minutes)) {
             const timeInMinutes = hours * 60 + minutes;
             const isCenter = rec.department && rec.department.includes('센터');
-            const limitMinutes = isCenter ? 600 : 540; // 10:00 vs 09:00
+            const isStartupTeam = rec.department && rec.department.includes('창업지원팀');
+            const limitMinutes = (isCenter || isStartupTeam) ? 600 : 540; // 10:00 vs 09:00
             computedStatus = timeInMinutes <= limitMinutes ? '정상' : '지각';
           }
         }

@@ -264,7 +264,7 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
           <div className="p-4 bg-slate-50 border-t border-slate-150 flex flex-col gap-1.5 text-[10px] text-slate-400 font-medium">
             <div className="flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>* 출근 제한 기준: 일반 팀(부서명에 '팀' 포함)은 09:00까지, 센터(부서명에 '센터' 포함)는 10:00까지 출근해야 정상 출근으로 자동 반영됩니다.</span>
+              <span>* 출근 제한 기준: 일반 팀은 09:00까지, 센터 및 창업지원팀은 10:00까지 출근해야 정상 출근으로 자동 반영됩니다.</span>
             </div>
           </div>
         </div>
