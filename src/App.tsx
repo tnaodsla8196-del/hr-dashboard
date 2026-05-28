@@ -274,19 +274,54 @@ export default function App() {
     });
   }, [records, selectedDept, searchQuery, timeFilter, selectedMonth, selectedWeek, customStartDate, customEndDate]);
 
-  // Helper counts: Today's absentees under current filtered context
-  const todayAbsenteeCount = useMemo(() => {
-    return filteredRecords.filter(rec => {
-      try {
-        const s = new Date(rec.startDate);
-        const e = new Date(rec.endDate);
-        const t = new Date(simulatedDate);
-        return t >= s && t <= e;
-      } catch {
-        return false;
+  // Helper count: Today's On-time Attendance Rate (금일 정상 출근율)
+  const todayAttendanceRate = useMemo(() => {
+    const targetDateStr = simulatedDate.replace(/-/g, '');
+    const todayCommutes = commuteRecords.filter(rec => rec.date === targetDateStr);
+    
+    if (todayCommutes.length === 0) return 100; // Fallback to 100% if no commute data for today
+    
+    let normalCount = 0;
+    let lateCount = 0;
+    
+    todayCommutes.forEach(rec => {
+      // 강남구청점 인원은 현장직이라 지표에서 제외
+      if (rec.department && rec.department.includes('강남구청점')) {
+        return;
       }
-    }).length;
-  }, [filteredRecords, simulatedDate]);
+
+      // Apply department filter if active
+      if (selectedDept !== 'all' && rec.department !== selectedDept) {
+        return;
+      }
+      
+      // Apply search query filter if active
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = rec.name.toLowerCase().includes(q);
+        const matchesId = rec.sapId.toLowerCase().includes(q);
+        const matchesDept = rec.department.toLowerCase().includes(q);
+        const matchesType = rec.type ? rec.type.toLowerCase().includes(q) : false;
+        const matchesDetail = rec.detail ? rec.detail.toLowerCase().includes(q) : false;
+        
+        if (!matchesName && !matchesId && !matchesDept && !matchesType && !matchesDetail) {
+          return;
+        }
+      }
+
+      const type = rec.type?.trim();
+      if (type === '정상' || type === '출근') {
+        normalCount++;
+      } else if (type === '지각') {
+        lateCount++;
+      }
+    });
+    
+    const totalWorking = normalCount + lateCount;
+    if (totalWorking === 0) return 100;
+    
+    return Math.round((normalCount / totalWorking) * 100);
+  }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
 
   // Counts of leaves and trips in the current filtered subset
   const leaveStats = useMemo(() => {
@@ -344,7 +379,7 @@ export default function App() {
           tripRecordsCount={leaveStats.trips}
           onDataUploaded={handleDataUploaded}
           selectedDate={simulatedDate}
-          todayAbsenteeCount={todayAbsenteeCount}
+          todayAttendanceRate={todayAttendanceRate}
           onAddRecord={handleAddRecord}
           isSyncing={isSyncing}
           onSyncData={handleSyncData}

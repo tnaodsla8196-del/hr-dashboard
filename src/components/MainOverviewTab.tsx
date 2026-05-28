@@ -81,7 +81,8 @@ export const MainOverviewTab: React.FC<MainOverviewTabProps> = ({ records, allRe
     const stats: Record<string, { used: number; employeeCount: number; allocated: number; rate: number; deviation: number }> = {};
     
     // Initialize stats
-    Object.entries(deptEmployeeMap).forEach(([dept, employees]) => {
+    Object.keys(deptEmployeeMap).forEach((dept) => {
+      const employees = deptEmployeeMap[dept];
       const employeeCount = employees.size;
       const allocated = employeeCount * 15; // 15 days standard
       stats[dept] = { used: 0, employeeCount, allocated, rate: 0, deviation: 0 };

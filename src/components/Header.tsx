@@ -12,7 +12,7 @@ interface HeaderProps {
   totalRecords: number;
   leaveRecordsCount: number;
   tripRecordsCount: number;
-  todayAbsenteeCount: number;
+  todayAttendanceRate: number;
   onDataUploaded: (newRecords: AttendanceRecord[]) => void;
   selectedDate: string;
   onAddRecord: (record: AttendanceRecord) => void;
@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   totalRecords,
   leaveRecordsCount,
   tripRecordsCount,
-  todayAbsenteeCount,
+  todayAttendanceRate,
   onDataUploaded,
   selectedDate,
   onAddRecord,
@@ -442,25 +442,25 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Today Active */}
-        <div className="bg-white p-5 rounded-xl border border-slate-300 shadow-xs hover:shadow-sm transition-all duration-300 space-y-2 ring-1 ring-blue-500/10 group bg-slate-50/30">
+        {/* Card 4: Today Attendance Rate */}
+        <div className="bg-white p-5 rounded-xl border border-slate-300 shadow-xs hover:shadow-sm transition-all duration-300 space-y-2 ring-1 ring-emerald-500/10 group bg-slate-50/30">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block">지정일 당일 부재자</span>
-            <span className="inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 ring-1 ring-amber-600/20">
-              Today Active
+            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block">금일 정상 출근율</span>
+            <span className="inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20">
+              Attendance
             </span>
           </div>
           <div className="flex items-baseline gap-1 pt-1">
-            <span className="text-3xl font-bold tracking-tight text-slate-950 font-mono font-display group-hover:text-amber-600 transition-colors">
-              {todayAbsenteeCount}
+            <span className="text-3xl font-bold tracking-tight text-slate-950 font-mono font-display group-hover:text-emerald-600 transition-colors">
+              {todayAttendanceRate}
             </span>
-            <span className="text-xs font-bold text-slate-900">명</span>
+            <span className="text-xs font-bold text-slate-900">%</span>
             <span className="text-[10px] text-slate-500 font-normal ml-1 font-mono">
               ({selectedDate})
             </span>
           </div>
           <div className="text-[11px] text-slate-500 leading-normal">
-            설정 분석일 부재 휴가/출장 인원 수
+            설정 분석일 출근 대상자 중 정상 출근 비율
           </div>
         </div>
       </div>
