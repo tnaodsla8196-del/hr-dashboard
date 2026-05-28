@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { AttendanceRecord, CommuteRecord, TimeFilterType } from './types';
+import { AttendanceRecord, CommuteRecord, TimeFilterType, EmployeeStatusRecord } from './types';
 import { initialAttendanceData, parseCSVToRecords, parseCSVToCommuteRecords, parseCSVToEmployeeStatus } from './data';
 import { getWeekRanges } from './utils/dateUtils';
 import { Header } from './components/Header';
@@ -32,6 +32,9 @@ export default function App() {
 
   // Dynamic retirees list mapped from the '재직자현황' Google Sheet
   const [retiredEmployees, setRetiredEmployees] = useState<Record<string, string>>({});
+
+  // Master employee list loaded from the '재직자현황' Google Sheet
+  const [allEmployees, setAllEmployees] = useState<EmployeeStatusRecord[]>([]);
 
   // Filter States
   const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
@@ -102,6 +105,7 @@ export default function App() {
       if (parsedRecords && parsedRecords.length > 0) {
         setRecords(parsedRecords);
         setCommuteRecords(parsedCommutes);
+        setAllEmployees(parsedEmployees);
         
         // Build retirees map dynamically where retirementDate is not empty
         const retireesMap: Record<string, string> = {};
@@ -177,6 +181,7 @@ export default function App() {
             if (res3.ok) {
               const text = await res3.text();
               const parsedEmployees = parseCSVToEmployeeStatus(text);
+              setAllEmployees(parsedEmployees);
               const retireesMap: Record<string, string> = {};
               parsedEmployees.forEach(emp => {
                 if (emp.retirementDate && emp.retirementDate.trim()) {
@@ -351,11 +356,25 @@ export default function App() {
         }
       }
 
-      const type = rec.type?.trim();
-      if (type === '정상' || type === '출근') {
-        normalCount++;
-      } else if (type === '지각') {
-        lateCount++;
+      // Dynamically calculate status (정상/지각) based on check-in time:
+      // - 센터: 10:00 까지 출근
+      // - 그 외(팀 등): 09:00 까지 출근
+      if (rec.startTime) {
+        const parts = rec.startTime.split(':');
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          const timeInMinutes = hours * 60 + minutes;
+          const isCenter = rec.department && rec.department.includes('센터');
+          const limitMinutes = isCenter ? 600 : 540;
+          if (timeInMinutes <= limitMinutes) {
+            normalCount++;
+          } else {
+            lateCount++;
+          }
+        } else {
+          normalCount++;
+        }
       }
     });
     
@@ -365,41 +384,56 @@ export default function App() {
     return Math.round((normalCount / totalWorking) * 100);
   }, [commuteRecords, simulatedDate, selectedDept, searchQuery, retiredEmployees]);
 
-  // 1. Gather all unique active employees (excluding '강남구청점' and retired employees after their retirement date)
+  // 1. Gather all unique active employees from the master employee registry (excluding '강남구청점' and retired employees after their retirement date)
   const employees = useMemo(() => {
-    const map = new Map<string, { sapId: string; name: string; department: string; position: string }>();
-    records.forEach(r => {
-      if (r.sapId && !r.department?.includes('강남구청점')) {
-        // 퇴사자 제외 조건
-        const retirementDate = retiredEmployees[r.name.trim()];
-        if (retirementDate && simulatedDate >= retirementDate) {
-          return;
+    // If master employee status list is empty, fallback to scanning records to prevent empty state before sync
+    if (allEmployees.length === 0) {
+      const map = new Map<string, { sapId: string; name: string; department: string; position: string }>();
+      records.forEach(r => {
+        if (r.sapId && !r.department?.includes('강남구청점')) {
+          const retirementDate = retiredEmployees[r.name.trim()];
+          if (retirementDate && simulatedDate >= retirementDate) return;
+          map.set(r.sapId.trim(), {
+            sapId: r.sapId.trim(),
+            name: r.name.trim(),
+            department: r.department.trim(),
+            position: r.position.trim(),
+          });
         }
-        map.set(r.sapId.trim(), {
-          sapId: r.sapId.trim(),
-          name: r.name.trim(),
-          department: r.department.trim(),
-          position: r.position.trim(),
-        });
-      }
-    });
-    commuteRecords.forEach(c => {
-      if (c.sapId && !c.department?.includes('강남구청점')) {
-        // 퇴사자 제외 조건
-        const retirementDate = retiredEmployees[c.name.trim()];
-        if (retirementDate && simulatedDate >= retirementDate) {
-          return;
+      });
+      commuteRecords.forEach(c => {
+        if (c.sapId && !c.department?.includes('강남구청점')) {
+          const retirementDate = retiredEmployees[c.name.trim()];
+          if (retirementDate && simulatedDate >= retirementDate) return;
+          map.set(c.sapId.trim(), {
+            sapId: c.sapId.trim(),
+            name: c.name.trim(),
+            department: c.department.trim(),
+            position: c.position.trim(),
+          });
         }
-        map.set(c.sapId.trim(), {
-          sapId: c.sapId.trim(),
-          name: c.name.trim(),
-          department: c.department.trim(),
-          position: c.position.trim(),
-        });
-      }
-    });
-    return Array.from(map.values());
-  }, [records, commuteRecords, simulatedDate, retiredEmployees]);
+      });
+      return Array.from(map.values());
+    }
+
+    return allEmployees
+      .filter(emp => {
+        // Exclude Gangnam-gu Office
+        if (emp.department && emp.department.includes('강남구청점')) return false;
+
+        // Exclude retired employees
+        const retirementDate = retiredEmployees[emp.name.trim()];
+        if (retirementDate && simulatedDate >= retirementDate) return false;
+
+        return true;
+      })
+      .map(emp => ({
+        sapId: emp.sapId,
+        name: emp.name,
+        department: emp.department,
+        position: emp.position,
+      }));
+  }, [records, commuteRecords, allEmployees, retiredEmployees, simulatedDate]);
 
   // 2. Checked-in SAP IDs for simulatedDate (today)
   const todayCheckedInSapIds = useMemo(() => {
@@ -479,6 +513,9 @@ export default function App() {
         const retirementDate = retiredEmployees[rec.name.trim()];
         if (retirementDate && simulatedDate >= retirementDate) return false;
 
+        // Exclude those with empty startTime (not checked-in yet)
+        if (!rec.startTime || !rec.startTime.trim()) return false;
+
         // Apply department filter
         if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
         
@@ -492,15 +529,33 @@ export default function App() {
         }
         return true;
       })
-      .map(rec => ({
-        sapId: rec.sapId,
-        name: rec.name,
-        department: rec.department,
-        position: rec.position,
-        startTime: rec.startTime,
-        endTime: rec.endTime,
-        type: rec.type, // 정상, 지각 등
-      }));
+      .map(rec => {
+        // Dynamically calculate check-in status (정상/지각) based on:
+        // - 부서명에 '센터'가 있으면 10:00 까지 출근
+        // - 그 외(팀 등)는 09:00 까지 출근
+        let computedStatus = '정상';
+        if (rec.startTime) {
+          const parts = rec.startTime.split(':');
+          const hours = parseInt(parts[0], 10);
+          const minutes = parseInt(parts[1], 10);
+          if (!isNaN(hours) && !isNaN(minutes)) {
+            const timeInMinutes = hours * 60 + minutes;
+            const isCenter = rec.department && rec.department.includes('센터');
+            const limitMinutes = isCenter ? 600 : 540; // 10:00 vs 09:00
+            computedStatus = timeInMinutes <= limitMinutes ? '정상' : '지각';
+          }
+        }
+
+        return {
+          sapId: rec.sapId,
+          name: rec.name,
+          department: rec.department,
+          position: rec.position,
+          startTime: rec.startTime,
+          endTime: rec.endTime,
+          type: computedStatus,
+        };
+      });
   }, [commuteRecords, simulatedDate, selectedDept, searchQuery, retiredEmployees]);
 
 

@@ -340,9 +340,14 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
             )}
           </div>
 
-          <div className="p-4 bg-slate-50 border-t border-slate-150 flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>출근자 및 부재자 탭을 선택하여 당일 출퇴근 현황을 교차 검증(Cross-check)할 수 있습니다.</span>
+          <div className="p-4 bg-slate-50 border-t border-slate-150 flex flex-col gap-1.5 text-[10px] text-slate-400 font-medium">
+            <div className="flex items-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>출근자 및 부재자 탭을 선택하여 당일 출퇴근 현황을 교차 검증(Cross-check)할 수 있습니다.</span>
+            </div>
+            <div className="pl-5 text-slate-500 font-bold">
+              * 출근 기준: 팀(팀명 포함 부서)은 09:00까지, 센터(센터명 포함 부서)는 10:00까지 정상 출근이며, 이후 출근 시 지각으로 처리됩니다.
+            </div>
           </div>
         </div>
 
