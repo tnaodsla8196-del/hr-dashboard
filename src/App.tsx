@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { AttendanceRecord, CommuteRecord, TimeFilterType } from './types';
-import { initialAttendanceData, parseCSVToRecords, parseCSVToCommuteRecords } from './data';
+import { initialAttendanceData, parseCSVToRecords, parseCSVToCommuteRecords, parseCSVToEmployeeStatus } from './data';
 import { getWeekRanges } from './utils/dateUtils';
 import { Header } from './components/Header';
 import { Filters } from './components/Filters';
@@ -23,17 +23,15 @@ import {
   upsertCommuteRecords
 } from './supabaseClient';
 
-const RETIRED_EMPLOYEES: Record<string, string> = {
-  '라현식': '2026-04-30'
-};
-
-
 export default function App() {
   // Main state holding the list of all active attendance records
   const [records, setRecords] = useState<AttendanceRecord[]>(initialAttendanceData);
 
   // State for check-in/check-out records loaded from the '근태확인' sheet
   const [commuteRecords, setCommuteRecords] = useState<CommuteRecord[]>([]);
+
+  // Dynamic retirees list mapped from the '재직자현황' Google Sheet
+  const [retiredEmployees, setRetiredEmployees] = useState<Record<string, string>>({});
 
   // Filter States
   const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
@@ -73,10 +71,12 @@ export default function App() {
       const sheetId = '1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA';
       const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
       const commuteExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EA%B7%BC%ED%83%9C%ED%99%95%EC%9D%B8`;
+      const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EC%9E%AC%EC%A7%81%EC%9E%90%ED%98%84%ED%99%A9`;
       
-      const [res1, res2] = await Promise.all([
+      const [res1, res2, res3] = await Promise.all([
         fetch(csvExportUrl),
-        fetch(commuteExportUrl)
+        fetch(commuteExportUrl),
+        fetch(employeeExportUrl)
       ]);
       
       if (!res1.ok) {
@@ -85,18 +85,32 @@ export default function App() {
       if (!res2.ok) {
         throw new Error(`Google Sheets check-in sheet export failed with status ${res2.status}`);
       }
+      if (!res3.ok) {
+        throw new Error(`Google Sheets employee status sheet export failed with status ${res3.status}`);
+      }
       
-      const [csvText, commuteText] = await Promise.all([
+      const [csvText, commuteText, employeeText] = await Promise.all([
         res1.text(),
-        res2.text()
+        res2.text(),
+        res3.text()
       ]);
       
       const parsedRecords = parseCSVToRecords(csvText);
       const parsedCommutes = parseCSVToCommuteRecords(commuteText);
+      const parsedEmployees = parseCSVToEmployeeStatus(employeeText);
       
       if (parsedRecords && parsedRecords.length > 0) {
         setRecords(parsedRecords);
         setCommuteRecords(parsedCommutes);
+        
+        // Build retirees map dynamically where retirementDate is not empty
+        const retireesMap: Record<string, string> = {};
+        parsedEmployees.forEach(emp => {
+          if (emp.retirementDate && emp.retirementDate.trim()) {
+            retireesMap[emp.name.trim()] = emp.retirementDate.trim();
+          }
+        });
+        setRetiredEmployees(retireesMap);
         
         const now = new Date();
         const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -117,7 +131,7 @@ export default function App() {
         
         if (showNotification) {
           const syncDest = isSupabaseConfigured ? '구글 스프레드시트 및 Supabase DB' : '구글 스프레드시트';
-          alert(`성공적으로 ${syncDest}에서 ${parsedRecords.length}건의 신청 내역 및 ${parsedCommutes.length}건의 출퇴근 실시간 근태 내역을 동기화하였습니다.`);
+          alert(`성공적으로 ${syncDest}에서 ${parsedRecords.length}건의 신청 내역, ${parsedCommutes.length}건의 출퇴근 실시간 근태 내역, ${parsedEmployees.length}건의 재직자 명부를 동기화하였습니다.`);
         }
       } else {
         throw new Error('시트 내용에서 유효한 근태 기록 레코드를 찾을 수 없습니다.');
@@ -155,6 +169,22 @@ export default function App() {
             const now = new Date();
             const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             setLastSyncedAt(timeStr + ' (Supabase DB)');
+            
+            // Fetch employee status from Google Sheets dynamically even if loading from Supabase
+            const sheetId = '1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA';
+            const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EC%9E%AC%EC%A7%81%EC%9E%90%ED%98%84%ED%99%A9`;
+            const res3 = await fetch(employeeExportUrl);
+            if (res3.ok) {
+              const text = await res3.text();
+              const parsedEmployees = parseCSVToEmployeeStatus(text);
+              const retireesMap: Record<string, string> = {};
+              parsedEmployees.forEach(emp => {
+                if (emp.retirementDate && emp.retirementDate.trim()) {
+                  retireesMap[emp.name.trim()] = emp.retirementDate.trim();
+                }
+              });
+              setRetiredEmployees(retireesMap);
+            }
           } else {
             console.log('Supabase tables are empty. Seeding from Google Sheets...');
             await handleSyncData(false);
@@ -297,7 +327,7 @@ export default function App() {
       }
 
       // 퇴사자 제외
-      const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+      const retirementDate = retiredEmployees[rec.name.trim()];
       if (retirementDate && simulatedDate >= retirementDate) {
         return;
       }
@@ -333,7 +363,7 @@ export default function App() {
     if (totalWorking === 0) return 100;
     
     return Math.round((normalCount / totalWorking) * 100);
-  }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
+  }, [commuteRecords, simulatedDate, selectedDept, searchQuery, retiredEmployees]);
 
   // 1. Gather all unique active employees (excluding '강남구청점' and retired employees after their retirement date)
   const employees = useMemo(() => {
@@ -341,7 +371,7 @@ export default function App() {
     records.forEach(r => {
       if (r.sapId && !r.department?.includes('강남구청점')) {
         // 퇴사자 제외 조건
-        const retirementDate = RETIRED_EMPLOYEES[r.name.trim()];
+        const retirementDate = retiredEmployees[r.name.trim()];
         if (retirementDate && simulatedDate >= retirementDate) {
           return;
         }
@@ -356,7 +386,7 @@ export default function App() {
     commuteRecords.forEach(c => {
       if (c.sapId && !c.department?.includes('강남구청점')) {
         // 퇴사자 제외 조건
-        const retirementDate = RETIRED_EMPLOYEES[c.name.trim()];
+        const retirementDate = retiredEmployees[c.name.trim()];
         if (retirementDate && simulatedDate >= retirementDate) {
           return;
         }
@@ -369,7 +399,7 @@ export default function App() {
       }
     });
     return Array.from(map.values());
-  }, [records, commuteRecords, simulatedDate]);
+  }, [records, commuteRecords, simulatedDate, retiredEmployees]);
 
   // 2. Checked-in SAP IDs for simulatedDate (today)
   const todayCheckedInSapIds = useMemo(() => {
@@ -420,7 +450,7 @@ export default function App() {
       if (!matchesDate) return false;
 
       // 퇴사자 제외
-      const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+      const retirementDate = retiredEmployees[rec.name.trim()];
       if (retirementDate && simulatedDate >= retirementDate) return false;
 
       if (selectedDept !== 'all' && rec.department !== selectedDept) return false;
@@ -433,7 +463,7 @@ export default function App() {
       }
       return true;
     });
-  }, [records, simulatedDate, selectedDept, searchQuery]);
+  }, [records, simulatedDate, selectedDept, searchQuery, retiredEmployees]);
 
   // 6. Checked-in employees list for simulatedDate (today) matching active filters
   const todayCheckedInEmployees = useMemo(() => {
@@ -446,7 +476,7 @@ export default function App() {
         if (rec.department && rec.department.includes('강남구청점')) return false;
 
         // Exclude retired employees
-        const retirementDate = RETIRED_EMPLOYEES[rec.name.trim()];
+        const retirementDate = retiredEmployees[rec.name.trim()];
         if (retirementDate && simulatedDate >= retirementDate) return false;
 
         // Apply department filter
@@ -471,7 +501,7 @@ export default function App() {
         endTime: rec.endTime,
         type: rec.type, // 정상, 지각 등
       }));
-  }, [commuteRecords, simulatedDate, selectedDept, searchQuery]);
+  }, [commuteRecords, simulatedDate, selectedDept, searchQuery, retiredEmployees]);
 
 
   // Counts of leaves and trips in the current filtered subset

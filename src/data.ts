@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AttendanceRecord, CommuteRecord } from './types';
+import { AttendanceRecord, CommuteRecord, EmployeeStatusRecord } from './types';
 
 // Realistic sample dataset reflecting standard HR CSV structures
 export const initialAttendanceData: AttendanceRecord[] = [
@@ -586,6 +586,69 @@ export function parseCSVToCommuteRecords(csvText: string): CommuteRecord[] {
       category,
       type,
       detail
+    });
+  }
+
+  return records;
+}
+
+export function parseCSVToEmployeeStatus(csvText: string): EmployeeStatusRecord[] {
+  if (!csvText || !csvText.trim()) return [];
+
+  const lines = csvText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+  if (lines.length < 2) return [];
+
+  // Determine delimiter
+  let delimiter = ',';
+  const firstLine = lines[0];
+  const commas = (firstLine.match(/,/g) || []).length;
+  const tabs = (firstLine.match(/\t/g) || []).length;
+  const semicolons = (firstLine.match(/;/g) || []).length;
+  if (tabs > commas && tabs > semicolons) delimiter = '\t';
+  else if (semicolons > commas && semicolons > tabs) delimiter = ';';
+
+  const parseRow = (rowText: string): string[] => {
+    const result: string[] = [];
+    let insideQuote = false;
+    let entry = '';
+    
+    for (let i = 0; i < rowText.length; i++) {
+      const char = rowText[i];
+      if (char === '"' || char === "'") {
+        insideQuote = !insideQuote;
+      } else if (char === delimiter && !insideQuote) {
+        result.push(entry.trim());
+        entry = '';
+      } else {
+        entry += char;
+      }
+    }
+    result.push(entry.trim());
+    return result;
+  };
+
+  const records: EmployeeStatusRecord[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const rawCells = parseRow(lines[i]);
+    if (rawCells.length < 7) continue;
+
+    // Columns: "사원코드","사원명","주민등록번호","부서명","직급명","입사일","퇴사일"...
+    const sapId = rawCells[0]?.replace(/"/g, '') || '';
+    const name = rawCells[1]?.replace(/"/g, '') || '';
+    const department = rawCells[3]?.replace(/"/g, '') || '';
+    const position = rawCells[4]?.replace(/"/g, '') || '';
+    const joinDate = rawCells[5]?.replace(/"/g, '') || '';
+    const retirementDate = rawCells[6]?.replace(/"/g, '') || '';
+
+    if (!sapId) continue;
+
+    records.push({
+      sapId,
+      name,
+      department,
+      position,
+      joinDate,
+      retirementDate
     });
   }
 

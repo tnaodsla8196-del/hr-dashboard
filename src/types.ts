@@ -40,3 +40,12 @@ export interface CommuteRecord {
 
 export type TimeFilterType = 'all' | 'weekly' | 'monthly' | 'custom';
 
+export interface EmployeeStatusRecord {
+  sapId: string;
+  name: string;
+  department: string;
+  position: string;
+  joinDate: string;
+  retirementDate: string;
+}
+
