@@ -166,49 +166,40 @@ export default function App() {
   // Perform data initialization
   useEffect(() => {
     async function initData() {
-      if (isSupabaseConfigured) {
-        setSupabaseStatus('connecting');
-        try {
-          const supRecords = await fetchAttendanceRecords();
-          const supCommute = await fetchCommuteRecords();
-          
-          if (supRecords.length > 0) {
-            setRecords(supRecords);
-            setCommuteRecords(supCommute);
-            setSupabaseStatus('connected');
-            const now = new Date();
-            const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-            setLastSyncedAt(timeStr + ' (Supabase DB)');
-            
-            // Fetch employee status from Google Sheets dynamically even if loading from Supabase
-            const sheetId = '1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA';
-            const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1673041276`;
-            const res3 = await fetch(employeeExportUrl);
-            if (res3.ok) {
-              const text = await res3.text();
-              const parsedEmployees = parseCSVToEmployeeStatus(text);
-              setAllEmployees(parsedEmployees);
-              const retireesMap: Record<string, string> = {};
-              parsedEmployees.forEach(emp => {
-                if (emp.retirementDate && emp.retirementDate.trim()) {
-                  retireesMap[emp.name.trim()] = emp.retirementDate.trim();
-                }
-              });
-              setRetiredEmployees(retireesMap);
-            }
-          } else {
-            console.log('Supabase tables are empty. Seeding from Google Sheets...');
-            await handleSyncData(false);
-          }
-        } catch (err) {
-          console.error('Failed to load from Supabase:', err);
-          setSupabaseStatus('error');
-          // Fallback to Google Sheets
-          await handleSyncData(false);
-        }
-      } else {
-        setSupabaseStatus('not_configured');
+      // Always prioritize loading the latest live data from Google Sheets first
+      // since the background automation script updates the Google Sheet directly.
+      try {
         await handleSyncData(false);
+        if (isSupabaseConfigured) {
+          setSupabaseStatus('connected');
+        } else {
+          setSupabaseStatus('not_configured');
+        }
+      } catch (err) {
+        console.warn('Initial Google Sheets sync failed, falling back to Supabase DB/Cache:', err);
+        if (isSupabaseConfigured) {
+          setSupabaseStatus('connecting');
+          try {
+            const supRecords = await fetchAttendanceRecords();
+            const supCommute = await fetchCommuteRecords();
+            
+            if (supRecords.length > 0) {
+              setRecords(supRecords);
+              setCommuteRecords(supCommute);
+              setSupabaseStatus('connected');
+              const now = new Date();
+              const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+              setLastSyncedAt(timeStr + ' (Supabase DB Fallback)');
+            } else {
+              setSupabaseStatus('error');
+            }
+          } catch (dbErr) {
+            console.error('Failed to load from Supabase fallback:', dbErr);
+            setSupabaseStatus('error');
+          }
+        } else {
+          setSupabaseStatus('error');
+        }
       }
     }
     initData();
