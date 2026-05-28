@@ -31,7 +31,13 @@ export default function App() {
   const [commuteRecords, setCommuteRecords] = useState<CommuteRecord[]>([]);
 
   // Dynamic retirees list mapped from the '재직자현황' Google Sheet
-  const [retiredEmployees, setRetiredEmployees] = useState<Record<string, string>>({});
+  const [retiredEmployees, setRetiredEmployees] = useState<Record<string, string>>({
+    '라현식': '2026-04-30',
+    '김보선': '2026-03-06',
+    '신예림': '2026-02-27',
+    '김연희': '2026-04-03',
+    '박은준': '2026-01-16'
+  });
 
   // Master employee list loaded from the '재직자현황' Google Sheet
   const [allEmployees, setAllEmployees] = useState<EmployeeStatusRecord[]>([]);
@@ -73,8 +79,8 @@ export default function App() {
     try {
       const sheetId = '1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA';
       const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-      const commuteExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EA%B7%BC%ED%83%9C%ED%99%95%EC%9D%B8`;
-      const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EC%9E%AC%EC%A7%81%EC%9E%90%ED%98%84%ED%99%A9`;
+      const commuteExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1707872075`;
+      const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1673041276`;
       
       const [res1, res2, res3] = await Promise.all([
         fetch(csvExportUrl),
@@ -176,7 +182,7 @@ export default function App() {
             
             // Fetch employee status from Google Sheets dynamically even if loading from Supabase
             const sheetId = '1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA';
-            const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=%EC%9E%AC%EC%A7%81%EC%9E%90%ED%98%84%ED%99%A9`;
+            const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1673041276`;
             const res3 = await fetch(employeeExportUrl);
             if (res3.ok) {
               const text = await res3.text();
@@ -799,11 +805,11 @@ export default function App() {
                 }`}
               >
                 <ClipboardCheck className={`w-4 h-4 ${activeTab === 5 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>금일 미출근 현황 (출근 독려)</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 5 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                <span>금일 출근 & 미출근 현황</span>
+                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
+                  activeTab === 5 ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-150 text-slate-650 border-slate-200'
                 }`}>
-                  {todayUncheckedEmployees.length}
+                  출근 {todayCheckedInEmployees.length} | 미출근 {todayUncheckedEmployees.length}
                 </span>
               </button>
             </nav>
