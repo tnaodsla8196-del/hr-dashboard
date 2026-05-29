@@ -111,7 +111,7 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
           </div>
         </div>
         <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-xs text-center flex flex-col justify-center items-center">
-          <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">연동 출근율 (강남구청점 제외)</span>
+          <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">연동 출근율 (제외 부서 제외)</span>
           <div className="flex items-baseline gap-1">
             <span className="text-3xl font-bold font-mono text-indigo-600 font-display">{todayAttendanceRate}</span>
             <span className="text-sm text-indigo-500 font-bold">%</span>
