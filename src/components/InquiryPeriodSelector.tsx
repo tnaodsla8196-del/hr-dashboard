@@ -40,8 +40,9 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const monthOptions = Array.from({ length: currentMonth }, (_, i) => {
-    const m = String(currentMonth - i).padStart(2, '0');
+  // Generate month options for all 12 months of the current year to pre-populate future months
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const m = String(12 - i).padStart(2, '0');
     return { value: m, label: `${currentYear}년 ${m}월` };
   });
 
