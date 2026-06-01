@@ -56,11 +56,31 @@ export const EmployeeSummaryTab: React.FC<EmployeeSummaryTabProps> = ({
   // Track expanded rows and active drill-down category by employee SAP ID
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean | string>>({});
 
+  // Sort State
+  const [sortField, setSortField] = useState<'sapId' | 'name' | 'department' | 'position' | 'annualLeaveDays' | 'businessTripCount' | 'compensationLeaveCount' | 'officialLeaveCount' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   const toggleExpand = (sapId: string) => {
     setExpandedIds(prev => ({
       ...prev,
       [sapId]: prev[sapId] ? false : 'annual'
     }));
+  };
+
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIndicator = (field: typeof sortField) => {
+    if (sortField !== field) return <span className="ml-1 text-slate-300 text-[9px] font-sans">▲▼</span>;
+    return sortDirection === 'asc' 
+      ? <span className="ml-1 text-blue-600 font-sans">▲</span> 
+      : <span className="ml-1 text-blue-600 font-sans">▼</span>;
   };
 
   // Helper classification logic
@@ -177,6 +197,25 @@ export const EmployeeSummaryTab: React.FC<EmployeeSummaryTabProps> = ({
     });
   }, [employeeSummaries]);
 
+  // Sort integrated summaries
+  const sortedSummaries = useMemo(() => {
+    if (!sortField) return filteredSummaries;
+
+    return [...filteredSummaries].sort((a, b) => {
+      const valA = a[sortField];
+      const valB = b[sortField];
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        const strA = valA.trim();
+        const strB = valB.trim();
+        return sortDirection === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+      } else if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+      return 0;
+    });
+  }, [filteredSummaries, sortField, sortDirection]);
+
   // Overall sums in current filtered set
   const totalEmployeesWithActivity = filteredSummaries.length;
   const totalLeaveDays = filteredSummaries.reduce((sum, e) => sum + e.annualLeaveDays, 0);
@@ -263,18 +302,34 @@ export const EmployeeSummaryTab: React.FC<EmployeeSummaryTabProps> = ({
               <thead>
                 <tr className="bg-slate-50/70 text-[11px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-wider select-none">
                   <th className="px-6 py-3.5 w-12"></th>
-                  <th className="px-6 py-3.5">사번</th>
-                  <th className="px-6 py-3.5">성명</th>
-                  <th className="px-6 py-3.5">부서</th>
-                  <th className="px-6 py-3.5">직급</th>
-                  <th className="px-6 py-3.5 text-center">연차 사용일수</th>
-                  <th className="px-6 py-3.5 text-center">출장 건수</th>
-                  <th className="px-6 py-3.5 text-center">보상휴가 건수</th>
-                  <th className="px-6 py-3.5 text-center">공가 건수</th>
+                  <th className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('sapId')}>
+                    <span className="flex items-center">사번 {renderSortIndicator('sapId')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('name')}>
+                    <span className="flex items-center">성명 {renderSortIndicator('name')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('department')}>
+                    <span className="flex items-center">부서 {renderSortIndicator('department')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('position')}>
+                    <span className="flex items-center">직급 {renderSortIndicator('position')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 text-center cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('annualLeaveDays')}>
+                    <span className="flex items-center justify-center">연차 사용일수 {renderSortIndicator('annualLeaveDays')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 text-center cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('businessTripCount')}>
+                    <span className="flex items-center justify-center">출장 건수 {renderSortIndicator('businessTripCount')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 text-center cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('compensationLeaveCount')}>
+                    <span className="flex items-center justify-center">보상휴가 건수 {renderSortIndicator('compensationLeaveCount')}</span>
+                  </th>
+                  <th className="px-6 py-3.5 text-center cursor-pointer hover:bg-slate-100/50 hover:text-slate-800 transition-colors" onClick={() => handleSort('officialLeaveCount')}>
+                    <span className="flex items-center justify-center">공가 건수 {renderSortIndicator('officialLeaveCount')}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSummaries.map((emp) => {
+                {sortedSummaries.map((emp) => {
                   const isExpanded = !!expandedIds[emp.sapId];
                   return (
                     <React.Fragment key={emp.sapId}>
