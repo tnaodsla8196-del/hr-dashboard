@@ -16,7 +16,7 @@ import { EmployeeSummaryTab } from './components/EmployeeSummaryTab';
 import { TodayUncheckedTab } from './components/TodayUncheckedTab';
 import { WorkingHoursTab } from './components/WorkingHoursTab';
 import { getWeekRangeForDate, calculateWeeklyHours } from './utils/workingHoursUtils';
-import { Layers, CalendarDays, ClipboardCheck, ArrowRightLeft, Info, HelpCircle, Users, Clock } from 'lucide-react';
+import { Layers, CalendarDays, ClipboardCheck, ArrowRightLeft, Info, HelpCircle, Users, Clock, Menu, X } from 'lucide-react';
 import {
   isSupabaseConfigured,
   fetchAttendanceRecords,
@@ -93,6 +93,9 @@ export default function App() {
 
   // Active Tab State: 1 = 통합 대시보드, 2 = 연차 사용 내역, 3 = 출장 및 기타 근무
   const [activeTab, setActiveTab] = useState<number>(1);
+
+  // Mobile Sidebar Drawer Open/Close state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Real-time synchronization states
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -661,264 +664,304 @@ export default function App() {
       range.endStr
     );
     
-    // Count employees with status '위험'
+    // Count employees with '위험' status
     return weeklyData.filter(emp => emp.status === '위험').length;
   }, [allCommuteRecords, records, allEmployees, retiredEmployees, simulatedDate]);
 
-  // Derived inquiry period string for tab displays
-  const inquiryPeriodText = useMemo(() => {
-    if (timeFilter === 'all') {
-      return '전체 기간';
-    } else if (timeFilter === 'monthly') {
-      return selectedMonth === 'all' ? '전체 월' : `2026년 ${selectedMonth}월`;
-    } else if (timeFilter === 'weekly') {
-      const monthPart = selectedMonth === 'all' ? '전체 월' : `2026년 ${selectedMonth}월`;
-      const weekPart = selectedWeek === 'all' ? '전체 주차' : `${selectedWeek}주차`;
-      return `${monthPart} ${weekPart}`;
-    } else {
-      return `${customStartDate || '미지정'} ~ ${customEndDate || '미지정'}`;
-    }
-  }, [timeFilter, selectedMonth, selectedWeek, customStartDate, customEndDate]);
+  const navItems = useMemo(() => [
+    { id: 1, label: '통합 대시보드', icon: Layers, badge: filteredRecords.length, badgeColor: 'bg-blue-50 text-blue-700 border-blue-200/50' },
+    { id: 2, label: '연차사용내역', icon: CalendarDays, badge: leaveStats.leaves, badgeColor: 'bg-slate-100 text-slate-700 border-slate-200/40' },
+    { id: 3, label: '출장 및 기타업무', icon: ArrowRightLeft, badge: leaveStats.trips, badgeColor: 'bg-slate-100 text-slate-700 border-slate-200/40' },
+    { id: 4, label: '인원별 통합 현황', icon: Users, badge: new Set(filteredRecords.map(r => r.sapId)).size, badgeColor: 'bg-slate-100 text-slate-700 border-slate-200/40' },
+    { id: 5, label: '금일 출근 & 미출근 현황', icon: ClipboardCheck, badge: `${todayCheckedInEmployees.length} | ${todayUncheckedEmployees.length}`, badgeColor: 'bg-blue-50 text-blue-750 border-blue-200/45' },
+    { id: 6, label: '근로시간 현황', icon: Clock, badge: `위험 ${currentWeekRiskCount}`, badgeColor: 'bg-rose-50 text-rose-700 border-rose-200/50' },
+  ], [filteredRecords, leaveStats, todayCheckedInEmployees, todayUncheckedEmployees, currentWeekRiskCount]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased flex flex-col lg:flex-row selection:bg-blue-100 selection:text-blue-900">
       
-      {/* Top Universal Branding Bar with low visual density */}
-      <div className="bg-slate-900 text-[11px] font-mono font-bold text-slate-400 py-3 px-4 sm:px-6 lg:px-8 border-b border-slate-950 flex justify-between items-center sm:gap-4 flex-wrap">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="tracking-wider">HR ATTENDANCE MONITOR DASHBOARD v1.4</span>
+      {/* 1. Desktop Left Sidebar */}
+      <aside className="w-64 lg:w-72 shrink-0 bg-white border-r border-slate-200 min-h-screen sticky top-0 hidden lg:flex flex-col justify-between z-30 shadow-3xs">
+        <div>
+          {/* Logo Branding */}
+          <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
+              N
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900 tracking-tight font-display">HR Monitor Pro</h2>
+              <p className="text-[10px] font-mono text-slate-400 font-bold tracking-widest uppercase">Intel Platform</p>
+            </div>
+          </div>
+
+          {/* Navigation Menu */}
+          <nav className="px-4 py-6 space-y-1.5 overflow-y-auto">
+            {navItems.map(item => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-150 cursor-pointer select-none active:scale-[0.98] ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600 rounded-l-none'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold font-mono border leading-tight ${item.badgeColor}`}>
+                    {item.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-        <div className="flex items-center gap-4 text-slate-450 text-right select-none font-medium">
-          <span>기준 시간대: UTC 09:00 (Seoul)</span>
-          <span className="hidden sm:inline">|</span>
-          <span className="hidden sm:inline">실시간 전사 사번 연동 완료</span>
+
+        {/* Sidebar Bottom Sync/Status Area */}
+        <div className="p-4 border-t border-slate-100 space-y-3.5 bg-slate-50/40 select-none">
+          <div className="text-[10px] font-mono text-slate-450 space-y-1">
+            <div className="flex items-center justify-between">
+              <span>동기화 상태:</span>
+              <span className="font-semibold">{lastSyncedAt ? '연동 완료' : '대기 중'}</span>
+            </div>
+            {lastSyncedAt && (
+              <div className="text-[9px] text-slate-400 font-semibold leading-tight">
+                {lastSyncedAt}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${supabaseStatus === 'connected' ? 'bg-indigo-500 animate-pulse' : 'bg-slate-400'}`} />
+            <span className="text-[9px] text-slate-450 font-bold uppercase font-mono tracking-wider">
+              {supabaseStatus === 'connected' ? 'Supabase Active' : 'Sheet Only'}
+            </span>
+          </div>
         </div>
+      </aside>
+
+      {/* 2. Mobile Responsive Top Nav Bar */}
+      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sticky top-0 z-40 shadow-xs w-full select-none">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition active:scale-95 cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-black text-sm">
+              N
+            </div>
+            <span className="text-sm font-black text-slate-900 tracking-tight font-display">HR Monitor Pro</span>
+          </div>
+        </div>
+        
+        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+          {navItems.find(item => item.id === activeTab)?.label}
+        </span>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        
-        {/* Unit 1: Header */}
-        <Header 
-          totalRecords={filteredRecords.length}
-          leaveRecordsCount={leaveStats.leaves}
-          tripRecordsCount={leaveStats.trips}
-          onDataUploaded={handleDataUploaded}
-          selectedDate={simulatedDate}
-          todayAttendanceRate={todayAttendanceRate}
-          onAddRecord={handleAddRecord}
-          isSyncing={isSyncing}
-          onSyncData={handleSyncData}
-          lastSyncedAt={lastSyncedAt}
-        />
-
-        {/* Real-time Google Sheet Connection & Setup Info Banner when Sync Fails or on demand */}
-        {syncError ? (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-fade-in">
-            <div className="flex gap-3">
-              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-slate-900 font-display">구글 스프레드시트 연동 지침 안내</h4>
-                <p className="text-[11.5px] text-slate-600 leading-normal font-medium">
-                  {syncError}
-                </p>
-                <div className="text-[10.5px] text-slate-450 font-mono pt-0.5">
-                  대상 연동 문서: <a href="https://docs.google.com/spreadsheets/d/1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA (바로가기 ↗)</a>
+      {/* 3. Mobile Sidebar Drawer overlay panel */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div 
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white h-full shadow-2xl border-r border-slate-200 animate-slide-in-left">
+            <div className="absolute top-4 right-4 z-10">
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-550 hover:text-slate-800 active:scale-95 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-lg">
+                N
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-slate-900 tracking-tight font-display">HR Monitor Pro</h2>
+                <p className="text-[10px] font-mono text-slate-400 font-bold tracking-widest uppercase">Intel Platform</p>
+              </div>
+            </div>
+            
+            <nav className="px-4 py-6 space-y-1.5 overflow-y-auto flex-1">
+              {navItems.map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-150 cursor-pointer select-none active:scale-[0.98] ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600 rounded-l-none'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold font-mono border leading-tight ${item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+            
+            <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50/40 select-none">
+              <div className="text-[10px] font-mono text-slate-450 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>동기화 상태:</span>
+                  <span className="font-semibold">{lastSyncedAt ? '연동 완료' : '대기 중'}</span>
                 </div>
               </div>
             </div>
-            <button 
-              type="button"
-              onClick={() => handleSyncData(true)}
-              disabled={isSyncing}
-              className="px-3.5 py-1.5 bg-white text-slate-700 hover:text-slate-900 border border-amber-300 rounded-lg text-xs font-bold shrink-0 shadow-2xs hover:bg-slate-50 transition cursor-pointer active:scale-95"
-            >
-              다시 시도
-            </button>
           </div>
-        ) : lastSyncedAt ? (
-          <div className="p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-fade-in">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <p className="text-[11.5px] text-emerald-850 font-sans leading-normal font-semibold">
-                <b>실시간 연동 상태:</b> 구글 스프레드시트({records.length}행)와 데이터가 실시간으로 동기화되어 있습니다. (최근 동기화: {lastSyncedAt})
-              </p>
-              
-              {/* Supabase Status Pill */}
-              {supabaseStatus === 'connected' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                  Supabase DB 활성화
-                </span>
-              )}
-              {supabaseStatus === 'connecting' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Supabase DB 연결 중...
-                </span>
-              )}
-              {supabaseStatus === 'error' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  Supabase 연결 안됨 (Sheet 대체 모드)
-                </span>
-              )}
-              {supabaseStatus === 'not_configured' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-100 text-slate-650 border border-slate-200 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                  Supabase 미설정 (Sheet 단독 모드)
-                </span>
-              )}
+        </div>
+      )}
+
+      {/* 4. Right Side Content Area */}
+      <main className="flex-1 min-w-0 flex flex-col justify-between">
+        
+        {/* Top Universal Branding Bar with low visual density (Visible on desktop only) */}
+        <div className="hidden lg:flex bg-slate-900 text-[11px] font-mono font-bold text-slate-400 py-3 px-4 sm:px-6 lg:px-8 border-b border-slate-950 justify-between items-center sm:gap-4 flex-wrap select-none">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="tracking-wider">HR ATTENDANCE MONITOR DASHBOARD v1.4</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-450 text-right select-none font-medium">
+            <span>기준 시간대: UTC 09:00 (Seoul)</span>
+            <span className="hidden sm:inline">|</span>
+            <span className="hidden sm:inline">실시간 전사 사번 연동 완료</span>
+          </div>
+        </div>
+
+        {/* Content body container */}
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+          
+          {/* Unit 1: Header */}
+          <Header 
+            totalRecords={filteredRecords.length}
+            leaveRecordsCount={leaveStats.leaves}
+            tripRecordsCount={leaveStats.trips}
+            onDataUploaded={handleDataUploaded}
+            selectedDate={simulatedDate}
+            todayAttendanceRate={todayAttendanceRate}
+            onAddRecord={handleAddRecord}
+            isSyncing={isSyncing}
+            onSyncData={handleSyncData}
+            lastSyncedAt={lastSyncedAt}
+          />
+
+          {/* Connection Banner */}
+          {syncError ? (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-fade-in select-text">
+              <div className="flex gap-3">
+                <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-slate-900 font-display">구글 스프레드시트 연동 지침 안내</h4>
+                  <p className="text-[11.5px] text-slate-600 leading-normal font-medium font-sans">
+                    {syncError}
+                  </p>
+                  <div className="text-[10.5px] text-slate-450 font-mono pt-0.5">
+                    대상 연동 문서: <a href="https://docs.google.com/spreadsheets/d/1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA/edit?usp=sharing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA (바로가기 ↗)</a>
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => handleSyncData(true)}
+                disabled={isSyncing}
+                className="px-3.5 py-1.5 bg-white text-slate-700 hover:text-slate-900 border border-amber-300 rounded-lg text-xs font-bold shrink-0 shadow-2xs hover:bg-slate-50 transition cursor-pointer active:scale-95"
+              >
+                다시 시도
+              </button>
             </div>
-            <a 
-              href="https://docs.google.com/spreadsheets/d/1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA/edit?usp=sharing" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 shrink-0"
-            >
-              <span>시트 보기</span>
-              <span className="text-[10px]">↗</span>
-            </a>
-          </div>
-        ) : null}
-
-        {/* Unit 2: Unified Parameter Filters Panel */}
-        <Filters 
-          timeFilter={timeFilter}
-          setTimeFilter={setTimeFilter}
-          selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
-          selectedWeek={selectedWeek}
-          setSelectedWeek={setSelectedWeek}
-          customStartDate={customStartDate}
-          setCustomStartDate={setCustomStartDate}
-          customEndDate={customEndDate}
-          setCustomEndDate={setCustomEndDate}
-          selectedDept={selectedDept}
-          setSelectedDept={setSelectedDept}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          availableDepts={availableDepts}
-          simulatedDate={simulatedDate}
-          setSimulatedDate={setSimulatedDate}
-        />
-
-        {/* Unit 3: Horizontal Navigation Tabs Selection Bar */}
-        <div className="space-y-5">
-          <div className="border-b border-slate-200">
-            <nav className="flex -mb-px space-x-6 overflow-x-auto" aria-label="Tabs">
-              <button
-                id="tab-btn-1"
-                onClick={() => setActiveTab(1)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 1
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
+          ) : lastSyncedAt ? (
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-fade-in select-text">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[11.5px] text-emerald-850 font-sans leading-normal font-semibold">
+                  <b>실시간 연동 상태:</b> 구글 스프레드시트({records.length}행)와 데이터가 실시간으로 동기화되어 있습니다. (최근 동기화: {lastSyncedAt})
+                </p>
+                
+                {/* Supabase Status Pill */}
+                {supabaseStatus === 'connected' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    Supabase DB 활성화
+                  </span>
+                )}
+                {supabaseStatus === 'connecting' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Supabase DB 연결 중...
+                  </span>
+                )}
+                {supabaseStatus === 'error' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    Supabase 연결 안됨 (Sheet 대체 모드)
+                  </span>
+                )}
+                {supabaseStatus === 'not_configured' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-100 text-slate-650 border border-slate-200 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Supabase 미설정 (Sheet 단독 모드)
+                  </span>
+                )}
+              </div>
+              <a 
+                href="https://docs.google.com/spreadsheets/d/1fsypp6-z5wZ73GhzVNu8FE8EtmVYgv7LVuRzHIaSUUA/edit?usp=sharing" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 shrink-0"
               >
-                <Layers className={`w-4 h-4 ${activeTab === 1 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>통합 대시보드</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 1 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {filteredRecords.length}
-                </span>
-              </button>
+                <span>시트 보기</span>
+                <span className="text-[10px]">↗</span>
+              </a>
+            </div>
+          ) : null}
 
-              <button
-                id="tab-btn-2"
-                onClick={() => setActiveTab(2)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 2
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <CalendarDays className={`w-4 h-4 ${activeTab === 2 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>연차사용내역</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 2 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {leaveStats.leaves}
-                </span>
-              </button>
-
-              <button
-                id="tab-btn-3"
-                onClick={() => setActiveTab(3)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 3
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <ArrowRightLeft className={`w-4 h-4 ${activeTab === 3 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>출장 및 기타업무</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 3 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {leaveStats.trips}
-                </span>
-              </button>
-
-              <button
-                id="tab-btn-4"
-                onClick={() => setActiveTab(4)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 4
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <Users className={`w-4 h-4 ${activeTab === 4 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>인원별 통합 현황</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                  activeTab === 4 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {new Set(filteredRecords.map(r => r.sapId)).size}
-                </span>
-              </button>
-
-              <button
-                id="tab-btn-5"
-                onClick={() => setActiveTab(5)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 5
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <ClipboardCheck className={`w-4 h-4 ${activeTab === 5 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>금일 출근 & 미출근 현황</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
-                  activeTab === 5 ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-150 text-slate-650 border-slate-200'
-                }`}>
-                  출근 {todayCheckedInEmployees.length} | 미출근 {todayUncheckedEmployees.length}
-                </span>
-              </button>
-
-              <button
-                id="tab-btn-6"
-                onClick={() => setActiveTab(6)}
-                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                  activeTab === 6
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                }`}
-              >
-                <Clock className={`w-4 h-4 ${activeTab === 6 ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>근로시간 현황</span>
-                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
-                  activeTab === 6 ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-slate-150 text-slate-650 border-slate-200'
-                }`}>
-                  위험 {currentWeekRiskCount}
-                </span>
-              </button>
-            </nav>
-          </div>
+          {/* Unit 2: Unified Parameter Filters Panel */}
+          <Filters 
+            timeFilter={timeFilter}
+            setTimeFilter={setTimeFilter}
+            selectedMonth={selectedMonth}
+            setSelectedMonth={setSelectedMonth}
+            selectedWeek={selectedWeek}
+            setSelectedWeek={setSelectedWeek}
+            customStartDate={customStartDate}
+            setCustomStartDate={setCustomStartDate}
+            customEndDate={customEndDate}
+            setCustomEndDate={setCustomEndDate}
+            selectedDept={selectedDept}
+            setSelectedDept={setSelectedDept}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            availableDepts={availableDepts}
+            simulatedDate={simulatedDate}
+            setSimulatedDate={setSimulatedDate}
+          />
 
           {/* Unit 4: Render active screen panel view */}
-          <div className="pt-1 select-text">
+          <div className="pt-2 select-text">
             {activeTab === 1 && (
               <MainOverviewTab 
                 records={filteredRecords}
@@ -1006,21 +1049,22 @@ export default function App() {
               />
             )}
           </div>
+          
         </div>
 
-      </div>
+        {/* Corporate footer */}
+        <footer className="bg-white border-t border-slate-200 py-10 select-none">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono">
+              HUMAN RESOURCES MANAGEMENT PRO ATTENDANCE ANALYTICS
+            </p>
+            <p className="text-[11px] text-slate-500 font-sans font-medium">
+              © 2026 HR Monitor Pro System Inc. ALL RIGHTS RESERVED. ERP 데이터 동기화 계정 보안 2단계 규정 검증 완료.
+            </p>
+          </div>
+        </footer>
+      </main>
 
-      {/* Corporate footer */}
-      <footer className="bg-white border-t border-slate-200 mt-20 py-10 selection:bg-none">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono">
-            HUMAN RESOURCES MANAGEMENT PRO ATTENDANCE ANALYTICS
-          </p>
-          <p className="text-[11px] text-slate-500 font-sans font-medium">
-            © 2026 HR Monitor Pro System Inc. ALL RIGHTS RESERVED. ERP 데이터 동기화 계정 보안 2단계 규정 검증 완료.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
