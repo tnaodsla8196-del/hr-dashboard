@@ -668,6 +668,31 @@ export default function App() {
     return weeklyData.filter(emp => emp.status === '위험').length;
   }, [allCommuteRecords, records, allEmployees, retiredEmployees, simulatedDate]);
 
+  // Derived inquiry period string for tab displays
+  const inquiryPeriodText = useMemo(() => {
+    if (timeFilter === 'all') {
+      return '전체 기간';
+    } else if (timeFilter === 'monthly') {
+      if (selectedMonth === 'all') return '2026년 전체';
+      return `2026년 ${selectedMonth}월`;
+    } else if (timeFilter === 'weekly') {
+      const range = getWeekRangeForDate(simulatedDate);
+      if (selectedMonth !== 'all' && selectedWeek !== 'all') {
+        const monthNum = parseInt(selectedMonth, 10);
+        const ranges = getWeekRanges(2026, monthNum);
+        const target = ranges.find(w => w.key === selectedWeek);
+        if (target) {
+          const parts = target.label.split('(');
+          const rangeStr = parts[1] ? parts[1].replace(')', '') : '';
+          return `2026년 ${selectedMonth}월 ${selectedWeek}주차 (${rangeStr})`;
+        }
+      }
+      return `현재 주차 (${range.label})`;
+    } else {
+      return `${customStartDate} ~ ${customEndDate}`;
+    }
+  }, [timeFilter, selectedMonth, selectedWeek, customStartDate, customEndDate, simulatedDate]);
+
   const navItems = useMemo(() => [
     { id: 1, label: '통합 대시보드', icon: Layers, badge: filteredRecords.length, badgeColor: 'bg-blue-50 text-blue-700 border-blue-200/50' },
     { id: 2, label: '연차사용내역', icon: CalendarDays, badge: leaveStats.leaves, badgeColor: 'bg-slate-100 text-slate-700 border-slate-200/40' },
