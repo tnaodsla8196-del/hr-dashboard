@@ -343,18 +343,17 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse table-auto select-text">
+                <table className="w-full text-left border-collapse table-fixed select-text">
                   <thead>
                     <tr className="bg-slate-50/30 text-[10.5px] font-bold text-slate-500 border-b border-slate-200 select-none">
-                      <th className="w-10 px-5 py-3 text-center">순위</th>
-                      <th className="px-5 py-3">성명</th>
-                      <th className="px-5 py-3">부서</th>
-                      <th className="px-5 py-3">직급</th>
-                      <th className="px-5 py-3 text-right">기본 근로 (최대 40h)</th>
-                      <th className="px-5 py-3 text-right">초과 근로</th>
-                      <th className="px-5 py-3 text-right">총 합계 시간</th>
-                      <th className="px-5 py-3 text-center">위험 등급</th>
-                      <th className="w-12 px-5 py-3"></th>
+                      <th className="w-[8%] px-5 py-3 text-center">순위</th>
+                      <th className="w-[12%] px-5 py-3">사번</th>
+                      <th className="w-[12%] px-5 py-3">성명</th>
+                      <th className="w-[18%] px-5 py-3">부서</th>
+                      <th className="w-[12%] px-5 py-3">직급</th>
+                      <th className="w-[12%] px-5 py-3 text-right">기본근로</th>
+                      <th className="w-[13%] px-5 py-3 text-right">초과근로</th>
+                      <th className="w-[13%] px-5 py-3 text-right">총 합계시간</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -375,14 +374,18 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
                             <td className="px-5 py-3.5 text-center font-bold font-mono text-slate-400">
                               {index + 1}
                             </td>
-                            <td className="px-5 py-3.5">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-900">{emp.name}</span>
-                                <span className="text-[10px] font-mono text-slate-450 font-medium">{emp.sapId}</span>
-                              </div>
+                            <td className="px-5 py-3.5 font-mono font-medium text-slate-600">
+                              {emp.sapId}
                             </td>
-                            <td className="px-5 py-3.5 text-slate-700 font-semibold">{emp.department}</td>
-                            <td className="px-5 py-3.5 text-slate-500 font-medium">{emp.position}</td>
+                            <td className="px-5 py-3.5 font-bold text-slate-900">
+                              {emp.name}
+                            </td>
+                            <td className="px-5 py-3.5 text-slate-700 font-semibold truncate" title={emp.department}>
+                              {emp.department}
+                            </td>
+                            <td className="px-5 py-3.5 text-slate-500 font-medium truncate" title={emp.position}>
+                              {emp.position}
+                            </td>
                             <td className="px-5 py-3.5 text-right font-mono font-bold text-slate-600">
                               {emp.regularHours}h
                             </td>
@@ -392,26 +395,12 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
                             <td className="px-5 py-3.5 text-right font-mono font-bold text-slate-900 text-sm">
                               {emp.totalHours}h
                             </td>
-                            <td className="px-5 py-3.5 text-center">
-                              <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                emp.status === '위험'
-                                  ? 'bg-rose-100 text-rose-700 border border-rose-200/50'
-                                  : emp.status === '경고'
-                                  ? 'bg-amber-100 text-amber-700 border border-amber-200/50'
-                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                              }`}>
-                                {emp.status}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3.5 text-center text-slate-400">
-                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            </td>
                           </tr>
 
                           {/* Expanded Detail Panel */}
                           {isExpanded && (
                             <tr className="bg-slate-50/40 select-text">
-                              <td colSpan={9} className="px-8 py-4 border-t border-b border-slate-200/60">
+                              <td colSpan={8} className="px-8 py-4 border-t border-b border-slate-200/60">
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                                     <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -425,7 +414,7 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
 
                                   {/* Detailed Day-by-Day Grid */}
                                   <div className="grid grid-cols-2 sm:grid-cols-7 gap-2.5">
-                                    {Object.entries(emp.dailyHours).map(([dayStr, detail]) => {
+                                    {(Object.entries(emp.dailyHours) as [string, { hours: number; isTrip: boolean; isLeave: boolean; startTime: string; endTime: string }][]).map(([dayStr, detail]) => {
                                       const dayName = getDayName(dayStr);
                                       const datePart = dayStr.split('-').slice(1).join('/'); // MM/DD
                                       
