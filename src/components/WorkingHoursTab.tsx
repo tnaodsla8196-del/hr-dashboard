@@ -489,16 +489,16 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
         {/* --- SubTab 2: Department Summary Table --- */}
         {subTab === 'department' && (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse table-auto select-text">
+            <table className="w-full text-left border-collapse table-fixed select-text">
               <thead>
                 <tr className="bg-slate-50/30 text-[10.5px] font-bold text-slate-500 border-b border-slate-200 select-none">
-                  <th className="w-12 px-5 py-3 text-center">순위</th>
-                  <th className="px-5 py-3">부서명</th>
-                  <th className="px-5 py-3 text-center">소속 인원수</th>
-                  <th className="px-5 py-3 text-right">평균 주간 근로시간</th>
-                  <th className="px-5 py-3 text-right">최고 근로시간 사원</th>
-                  <th className="px-5 py-3 text-center">52h 위험군 인원</th>
-                  <th className="px-5 py-3 text-center">초과근로 주의비율</th>
+                  <th className="w-[6%] px-5 py-3 text-center">순위</th>
+                  <th className="w-[16%] px-5 py-3">부서명</th>
+                  <th className="w-[12%] px-5 py-3 text-center">소속 인원수</th>
+                  <th className="w-[16%] px-5 py-3 text-right">평균 주간 근로시간</th>
+                  <th className="w-[18%] px-5 py-3 text-right">최고 근로시간 사원</th>
+                  <th className="w-[14%] px-5 py-3 text-center">52h 위험군 인원</th>
+                  <th className="w-[18%] px-5 py-3 text-center">초과근로 주의비율</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -522,7 +522,7 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
                       <td className="px-5 py-3.5 text-center font-bold font-mono text-slate-400">
                         {index + 1}
                       </td>
-                      <td className="px-5 py-3.5 font-bold text-slate-900 text-sm">
+                      <td className="px-5 py-3.5 font-bold text-slate-900 text-sm truncate" title={dept.deptName}>
                         {dept.deptName}
                       </td>
                       <td className="px-5 py-3.5 text-center font-mono font-bold text-slate-600">
@@ -531,9 +531,9 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
                       <td className="px-5 py-3.5 text-right font-mono font-bold text-slate-800 text-sm">
                         {dept.avgHours}h
                       </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="inline-flex flex-col items-end">
-                          <span className="font-bold text-slate-850">{dept.maxEmployeeName}</span>
+                      <td className="px-5 py-3.5 text-right overflow-hidden">
+                        <div className="inline-flex flex-col items-end max-w-full">
+                          <span className="font-bold text-slate-850 truncate max-w-full" title={dept.maxEmployeeName}>{dept.maxEmployeeName}</span>
                           <span className="text-[10px] font-mono font-semibold text-slate-450">{dept.maxHours}h</span>
                         </div>
                       </td>
