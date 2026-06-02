@@ -706,7 +706,7 @@ export default function App() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased flex flex-col lg:flex-row selection:bg-blue-100 selection:text-blue-900">
       
       {/* 1. Desktop Left Sidebar */}
-      <aside className="w-64 lg:w-72 shrink-0 bg-white border-r border-slate-200 min-h-screen sticky top-0 hidden lg:flex flex-col justify-between z-30 shadow-3xs">
+      <aside className="w-64 lg:w-72 shrink-0 bg-white border-r border-slate-200 h-screen sticky top-0 hidden lg:flex flex-col justify-between z-30 shadow-3xs self-start">
         <div>
           {/* Logo Branding */}
           <div className="p-6 border-b border-slate-100 flex items-center gap-3">
