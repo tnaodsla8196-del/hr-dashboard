@@ -14,7 +14,9 @@ import { AnnualLeaveTab } from './components/AnnualLeaveTab';
 import { BusinessTripTab } from './components/BusinessTripTab';
 import { EmployeeSummaryTab } from './components/EmployeeSummaryTab';
 import { TodayUncheckedTab } from './components/TodayUncheckedTab';
-import { Layers, CalendarDays, ClipboardCheck, ArrowRightLeft, Info, HelpCircle, Users } from 'lucide-react';
+import { WorkingHoursTab } from './components/WorkingHoursTab';
+import { getWeekRangeForDate, calculateWeeklyHours } from './utils/workingHoursUtils';
+import { Layers, CalendarDays, ClipboardCheck, ArrowRightLeft, Info, HelpCircle, Users, Clock } from 'lucide-react';
 import {
   isSupabaseConfigured,
   fetchAttendanceRecords,
@@ -29,6 +31,32 @@ export default function App() {
 
   // State for check-in/check-out records loaded from the '근태확인' sheet
   const [commuteRecords, setCommuteRecords] = useState<CommuteRecord[]>([]);
+
+  // State for historical monthly commute records
+  const [monthlyCommuteRecords, setMonthlyCommuteRecords] = useState<CommuteRecord[]>([]);
+
+  // Merged set of historical monthly commutes + current live commutes (deduplicated by sapId + date)
+  const allCommuteRecords = useMemo(() => {
+    const commuteMap = new Map<string, CommuteRecord>();
+    
+    // Past monthly commutes
+    monthlyCommuteRecords.forEach(rec => {
+      if (rec.sapId && rec.date) {
+        const key = `${rec.sapId.trim()}_${rec.date.trim()}`;
+        commuteMap.set(key, rec);
+      }
+    });
+    
+    // Live commutes (overwrites/updates past ones)
+    commuteRecords.forEach(rec => {
+      if (rec.sapId && rec.date) {
+        const key = `${rec.sapId.trim()}_${rec.date.trim()}`;
+        commuteMap.set(key, rec);
+      }
+    });
+    
+    return Array.from(commuteMap.values());
+  }, [monthlyCommuteRecords, commuteRecords]);
 
   // Dynamic retirees list mapped from the '재직자현황' Google Sheet
   const [retiredEmployees, setRetiredEmployees] = useState<Record<string, string>>({
@@ -82,10 +110,17 @@ export default function App() {
       const commuteExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1707872075`;
       const employeeExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1673041276`;
       
-      const [res1, res2, res3] = await Promise.all([
+      const currentMonth = new Date().getMonth() + 1;
+      const monthlyUrls: string[] = [];
+      for (let m = 1; m <= currentMonth; m++) {
+        monthlyUrls.push(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(`${m}월근태`)}`);
+      }
+      
+      const [res1, res2, res3, ...monthlyResList] = await Promise.all([
         fetch(csvExportUrl),
         fetch(commuteExportUrl),
-        fetch(employeeExportUrl)
+        fetch(employeeExportUrl),
+        ...monthlyUrls.map(url => fetch(url).catch(() => null))
       ]);
       
       if (!res1.ok) {
@@ -103,15 +138,35 @@ export default function App() {
         res2.text(),
         res3.text()
       ]);
+
+      const monthlyTexts = await Promise.all(
+        monthlyResList.map(async (res) => {
+          if (!res || !res.ok) return null;
+          const text = await res.text();
+          if (text.includes('출근시각') && text.includes('퇴근시각')) {
+            return text;
+          }
+          return null;
+        })
+      );
       
       const parsedRecords = parseCSVToRecords(csvText);
       const parsedCommutes = parseCSVToCommuteRecords(commuteText);
       const parsedEmployees = parseCSVToEmployeeStatus(employeeText);
+
+      const parsedMonthlyCommutes: CommuteRecord[] = [];
+      monthlyTexts.forEach(text => {
+        if (text) {
+          const parsed = parseCSVToCommuteRecords(text);
+          parsedMonthlyCommutes.push(...parsed);
+        }
+      });
       
       if (parsedRecords && parsedRecords.length > 0) {
         setRecords(parsedRecords);
         setCommuteRecords(parsedCommutes);
         setAllEmployees(parsedEmployees);
+        setMonthlyCommuteRecords(parsedMonthlyCommutes);
         
         // Build retirees map dynamically where retirementDate is not empty
         const retireesMap: Record<string, string> = {};
@@ -141,7 +196,7 @@ export default function App() {
         
         if (showNotification) {
           const syncDest = isSupabaseConfigured ? '구글 스프레드시트 및 Supabase DB' : '구글 스프레드시트';
-          alert(`성공적으로 ${syncDest}에서 ${parsedRecords.length}건의 신청 내역, ${parsedCommutes.length}건의 출퇴근 실시간 근태 내역, ${parsedEmployees.length}건의 재직자 명부를 동기화하였습니다.`);
+          alert(`성공적으로 ${syncDest}에서 ${parsedRecords.length}건의 신청 내역, ${parsedCommutes.length}건의 출퇴근 실시간 근태 내역, ${parsedMonthlyCommutes.length}건의 과거 월별 근태 내역, ${parsedEmployees.length}건의 재직자 명부를 동기화하였습니다.`);
         }
       } else {
         throw new Error('시트 내용에서 유효한 근태 기록 레코드를 찾을 수 없습니다.');
@@ -591,6 +646,25 @@ export default function App() {
     return { leaves, trips };
   }, [filteredRecords]);
 
+  // 52-hour overtime danger count for the current simulated date's week
+  const currentWeekRiskCount = useMemo(() => {
+    if (allEmployees.length === 0) return 0;
+    
+    // Resolve week range containing simulatedDate
+    const range = getWeekRangeForDate(simulatedDate);
+    const weeklyData = calculateWeeklyHours(
+      allCommuteRecords,
+      records,
+      allEmployees,
+      retiredEmployees,
+      range.startStr,
+      range.endStr
+    );
+    
+    // Count employees with status '위험'
+    return weeklyData.filter(emp => emp.status === '위험').length;
+  }, [allCommuteRecords, records, allEmployees, retiredEmployees, simulatedDate]);
+
   // Derived inquiry period string for tab displays
   const inquiryPeriodText = useMemo(() => {
     if (timeFilter === 'all') {
@@ -822,6 +896,24 @@ export default function App() {
                   출근 {todayCheckedInEmployees.length} | 미출근 {todayUncheckedEmployees.length}
                 </span>
               </button>
+
+              <button
+                id="tab-btn-6"
+                onClick={() => setActiveTab(6)}
+                className={`py-4 px-2 border-b-2 text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                  activeTab === 6
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                }`}
+              >
+                <Clock className={`w-4 h-4 ${activeTab === 6 ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>근로시간 현황</span>
+                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
+                  activeTab === 6 ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-slate-150 text-slate-650 border-slate-200'
+                }`}>
+                  위험 {currentWeekRiskCount}
+                </span>
+              </button>
             </nav>
           </div>
 
@@ -832,7 +924,7 @@ export default function App() {
                 records={filteredRecords}
                 allRecords={records}
                 simulatedDate={simulatedDate}
-                commuteRecords={commuteRecords}
+                commuteRecords={allCommuteRecords}
               />
             )}
 
@@ -874,7 +966,7 @@ export default function App() {
               <EmployeeSummaryTab 
                 records={filteredRecords}
                 rawRecords={records}
-                commuteRecords={commuteRecords}
+                commuteRecords={allCommuteRecords}
                 inquiryPeriod={inquiryPeriodText}
                 timeFilter={timeFilter}
                 setTimeFilter={setTimeFilter}
@@ -896,6 +988,21 @@ export default function App() {
                 checkedInEmployees={todayCheckedInEmployees}
                 simulatedDate={simulatedDate}
                 todayAttendanceRate={todayAttendanceRate}
+              />
+            )}
+
+            {activeTab === 6 && (
+              <WorkingHoursTab
+                commuteRecords={allCommuteRecords}
+                attendanceRecords={records}
+                allEmployees={allEmployees}
+                retiredEmployees={retiredEmployees}
+                simulatedDate={simulatedDate}
+                selectedDept={selectedDept}
+                searchQuery={searchQuery}
+                timeFilter={timeFilter}
+                selectedMonth={selectedMonth}
+                selectedWeek={selectedWeek}
               />
             )}
           </div>
