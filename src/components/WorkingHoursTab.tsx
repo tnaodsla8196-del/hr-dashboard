@@ -455,7 +455,7 @@ export const WorkingHoursTab: React.FC<WorkingHoursTabProps> = ({
                                           <div className="border-t border-slate-100 w-full pt-1.5 mt-2 flex justify-between items-baseline px-1">
                                             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Work</span>
                                             <span className="text-xs font-bold font-mono text-slate-800">
-                                              {detail.hours}h
+                                              {Math.round(detail.hours * 100) / 100}h
                                             </span>
                                           </div>
                                         </div>
