@@ -346,7 +346,7 @@ export function parseCSVToRecords(csvText: string): AttendanceRecord[] {
     category: ['근태항목', '분류', '항목', 'category', 'category_name'],
     type: ['근태구분', '구분', 'type', 'leavetype'],
     typeDetail: ['신청내역', '사유', '상세', 'detail', 'reason', 'contents'],
-    useDays: ['사용일수', '일수', '일', 'usedays', 'days'],
+    useDays: ['사용일수', 'usedays', 'days'],
     tripLocation: ['출장지', '목적지', 'location', 'destination'],
     transportation: ['교통수단', '교통', 'transport', 'transportation'],
     tripPurpose: ['출장목적', '출장사유', 'purpose'],
