@@ -379,12 +379,26 @@ export function parseCSVToRecords(csvText: string): AttendanceRecord[] {
     const docId = getVal('docId', `CSV-REC-${i.toString().padStart(4, '0')}`);
     const applyDate = getVal('applyDate', new Date().toISOString().substring(0, 10));
     const period = getVal('period', applyDate);
-    // Prioritize Column F (index 5, representing the 6th column, i.e. F열) as requested by the user for Department name mapping
-    let department = (rawCells.length > 5 && rawCells[5]) ? rawCells[5].trim() : getVal('department', '미정');
+    // Map department and position from the CSV headers dynamically.
+    // Fall back to index 4 (5th column) for department and index 5 (6th column) for position if headers are missing.
+    let department = getVal('department');
+    if (!department && rawCells.length > 4) {
+      department = rawCells[4].trim();
+    }
+    if (!department) {
+      department = '미정';
+    }
     if (department && department.includes('노랑통닭 강남구청점')) {
       department = department.replace('노랑통닭 강남구청점', '강남구청점');
     }
-    const position = getVal('position', '사원');
+    
+    let position = getVal('position');
+    if (!position && rawCells.length > 5) {
+      position = rawCells[5].trim();
+    }
+    if (!position) {
+      position = '사원';
+    }
     const name = getVal('name', '미기재');
     const sapId = getVal('sapId', `ERP-${Math.floor(100000 + Math.random() * 900000)}`);
     const status = getVal('status', '결재종결');
@@ -448,23 +462,24 @@ export function parseCSVToRecords(csvText: string): AttendanceRecord[] {
       else finalType = '기타';
     }
 
-    // Try to parse useDays
-    // Prioritize Column E (index 4, representing the 5th column, i.e. E열) as requested by the user
+    // Try to parse useDays dynamically from headers. 
+    // Fall back to index 3 (4th column, i.e. 사용일수) or index 4 (5th column) if headers are missing.
     let useDaysVal = 1;
-    let rawUseDays = '';
-    if (rawCells.length > 4) {
-      rawUseDays = rawCells[4]; // E column (index 4)
+    let rawUseDays = getVal('useDays');
+    if (!rawUseDays && rawCells.length > 3) {
+      rawUseDays = rawCells[3];
     }
     
     let parsedUseDays = parseFloat(rawUseDays);
     if (!isNaN(parsedUseDays)) {
       useDaysVal = parsedUseDays;
     } else {
-      // Fallback: try keyword map lookup for 'useDays'
-      const mappedUseDays = getVal('useDays');
-      if (mappedUseDays) {
-        const prsd = parseFloat(mappedUseDays);
-        if (!isNaN(prsd)) useDaysVal = prsd;
+      if (rawCells.length > 4) {
+        rawUseDays = rawCells[4];
+      }
+      parsedUseDays = parseFloat(rawUseDays);
+      if (!isNaN(parsedUseDays)) {
+        useDaysVal = parsedUseDays;
       } else {
         // Guess use days from period
         if (finalType.includes('반차') || finalType.includes('0.5')) {
