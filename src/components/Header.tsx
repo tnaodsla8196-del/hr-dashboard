@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { RefreshCw, Layers, PlusCircle } from 'lucide-react';
+import { RefreshCw, Layers, PlusCircle, Calendar } from 'lucide-react';
 import { AttendanceRecord } from '../types';
 import { parseCSVToRecords } from '../data';
 
@@ -14,7 +14,8 @@ interface HeaderProps {
   tripRecordsCount: number;
   todayAttendanceRate: number;
   onDataUploaded: (newRecords: AttendanceRecord[]) => void;
-  selectedDate: string;
+  simulatedDate: string;
+  setSimulatedDate: (val: string) => void;
   onAddRecord: (record: AttendanceRecord) => void;
   isSyncing: boolean;
   onSyncData: () => void;
@@ -27,7 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   tripRecordsCount,
   todayAttendanceRate,
   onDataUploaded,
-  selectedDate,
+  simulatedDate,
+  setSimulatedDate,
   onAddRecord,
   isSyncing,
   onSyncData,
@@ -124,6 +126,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Panel */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Global Date Selector (separated visually for global settings) */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 p-1.5 rounded-lg shrink-0 mr-1.5 shadow-3xs">
+            <span className="text-[11px] font-bold text-slate-600 px-1.5 flex items-center gap-1.5 select-none">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              분석 기준일자:
+            </span>
+            <input 
+              type="date" 
+              value={simulatedDate}
+              onChange={(e) => setSimulatedDate(e.target.value)}
+              className="text-xs font-semibold bg-white border border-slate-250 text-slate-800 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono h-7 cursor-pointer shadow-3xs"
+            />
+          </div>
+
           <button 
             id="btn-add-leave" 
             onClick={() => setShowAddForm(!showAddForm)}
@@ -456,7 +472,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
             <span className="text-xs font-bold text-slate-900">%</span>
             <span className="text-[10px] text-slate-500 font-normal ml-1 font-mono">
-              ({selectedDate})
+              ({simulatedDate})
             </span>
           </div>
           <div className="text-[11px] text-slate-500 leading-normal">

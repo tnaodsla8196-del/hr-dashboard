@@ -890,7 +890,8 @@ export default function App() {
             leaveRecordsCount={leaveStats.leaves}
             tripRecordsCount={leaveStats.trips}
             onDataUploaded={handleDataUploaded}
-            selectedDate={simulatedDate}
+            simulatedDate={simulatedDate}
+            setSimulatedDate={setSimulatedDate}
             todayAttendanceRate={todayAttendanceRate}
             onAddRecord={handleAddRecord}
             isSyncing={isSyncing}
@@ -985,8 +986,6 @@ export default function App() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             availableDepts={availableDepts}
-            simulatedDate={simulatedDate}
-            setSimulatedDate={setSimulatedDate}
           />
 
           {/* Unit 4: Render active screen panel view */}

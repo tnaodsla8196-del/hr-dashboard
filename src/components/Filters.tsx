@@ -30,9 +30,6 @@ interface FiltersProps {
   setSearchQuery: (val: string) => void;
   
   availableDepts: string[];
-  
-  simulatedDate: string; // "2026-05-21" etc
-  setSimulatedDate: (val: string) => void;
 }
 
 export const Filters: React.FC<FiltersProps> = ({
@@ -50,9 +47,7 @@ export const Filters: React.FC<FiltersProps> = ({
   setSelectedDept,
   searchQuery,
   setSearchQuery,
-  availableDepts,
-  simulatedDate,
-  setSimulatedDate
+  availableDepts
 }) => {
 
   const currentYear = new Date().getFullYear();
@@ -75,20 +70,6 @@ export const Filters: React.FC<FiltersProps> = ({
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-slate-500" />
           <h2 className="text-sm font-bold text-slate-900 tracking-tight font-display">통합 다차원 필터링 제어판</h2>
-        </div>
-        
-        {/* Today Simulation Target Date Selector */}
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-1.5 rounded-lg shrink-0">
-          <span className="text-[11px] font-bold text-slate-650 px-2 flex items-center gap-1.5 select-none">
-            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-            분석 기준일자 (오늘 날짜 변경):
-          </span>
-          <input 
-            type="date" 
-            value={simulatedDate}
-            onChange={(e) => setSimulatedDate(e.target.value)}
-            className="text-xs font-semibold bg-white border border-slate-200 text-slate-800 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
-          />
         </div>
       </div>
 
