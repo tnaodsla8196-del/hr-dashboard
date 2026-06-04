@@ -76,3 +76,48 @@ const formatDate = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
+export const KOREAN_HOLIDAYS_2026: Record<string, string> = {
+  "2026-01-01": "신정",
+  "2026-02-16": "설날 연휴",
+  "2026-02-17": "설날",
+  "2026-02-18": "설날 연휴",
+  "2026-03-01": "삼일절",
+  "2026-03-02": "대체공휴일 (삼일절)",
+  "2026-05-01": "근로자의 날",
+  "2026-05-05": "어린이날",
+  "2026-05-24": "부처님오신날",
+  "2026-05-25": "대체공휴일 (부처님오신날)",
+  "2026-06-06": "현충일",
+  "2026-08-15": "광복절",
+  "2026-08-17": "대체공휴일 (광복절)",
+  "2026-09-24": "추석 연휴",
+  "2026-09-25": "추석",
+  "2026-09-26": "추석 연휴",
+  "2026-10-03": "개천절",
+  "2026-10-05": "대체공휴일 (개천절)",
+  "2026-10-09": "한글날",
+  "2026-12-25": "성탄절"
+};
+
+export const getHolidayOrWeekendName = (dateStr: string): string | null => {
+  if (!dateStr) return null;
+  
+  // Normalize date string to YYYY-MM-DD
+  let normalized = dateStr.trim();
+  if (normalized.length === 8 && !normalized.includes('-')) {
+    normalized = `${normalized.substring(0, 4)}-${normalized.substring(4, 6)}-${normalized.substring(6, 8)}`;
+  }
+  
+  if (KOREAN_HOLIDAYS_2026[normalized]) {
+    return KOREAN_HOLIDAYS_2026[normalized];
+  }
+  
+  const date = new Date(normalized);
+  if (!isNaN(date.getTime())) {
+    const day = date.getDay(); // 0 = Sun, 6 = Sat
+    if (day === 0) return "일요일";
+    if (day === 6) return "토요일";
+  }
+  return null;
+};

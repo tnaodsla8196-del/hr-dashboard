@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Send, CheckCircle2, AlertTriangle, UserMinus, CalendarCheck, HelpCircle, Bell, Clock } from 'lucide-react';
 import { AttendanceRecord } from '../types';
+import { getHolidayOrWeekendName } from '../utils/dateUtils';
 
 interface UncheckedEmployee {
   sapId: string;
@@ -42,6 +43,8 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<'checkedIn' | 'absent'>('checkedIn');
+
+  const holidayName = getHolidayOrWeekendName(simulatedDate);
 
   const handleSendReminder = (empName: string, sapId: string) => {
     setSendingId(sapId);
@@ -148,12 +151,22 @@ export const TodayUncheckedTab: React.FC<TodayUncheckedTabProps> = ({
 
             {uncheckedEmployees.length === 0 ? (
               <div className="p-16 text-center text-slate-450 space-y-4">
-                <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto border ${
+                  holidayName ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'
+                }`}>
+                  {holidayName ? (
+                    <Clock className="w-5 h-5 text-amber-500" />
+                  ) : (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-slate-800">지정일 미출근 대상자가 없습니다!</p>
-                  <p className="text-[11px] text-slate-400">모든 재직 임직원이 정상 출근했거나 공식 휴가/출장 결재 처리가 완료되었습니다.</p>
+                  <p className="text-xs font-bold text-slate-800">
+                    {holidayName ? `오늘은 공휴일/휴일(${holidayName})입니다!` : "지정일 미출근 대상자가 없습니다!"}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {holidayName ? "공식 휴무일이므로 출근 독려 대상이 없습니다." : "모든 재직 임직원이 정상 출근했거나 공식 휴가/출장 결재 처리가 완료되었습니다."}
+                  </p>
                 </div>
               </div>
             ) : (

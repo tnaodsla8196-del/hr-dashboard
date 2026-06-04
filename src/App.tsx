@@ -6,7 +6,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AttendanceRecord, CommuteRecord, TimeFilterType, EmployeeStatusRecord } from './types';
 import { initialAttendanceData, parseCSVToRecords, parseCSVToCommuteRecords, parseCSVToEmployeeStatus } from './data';
-import { getWeekRanges } from './utils/dateUtils';
+import { getWeekRanges, getHolidayOrWeekendName } from './utils/dateUtils';
 import { Header } from './components/Header';
 import { Filters } from './components/Filters';
 import { MainOverviewTab } from './components/MainOverviewTab';
@@ -527,6 +527,10 @@ export default function App() {
 
   // 4. Employees who are not checked in AND not officially absent (matching active filters)
   const todayUncheckedEmployees = useMemo(() => {
+    // If it's a weekend or a Korean public holiday, there are no unchecked reminder targets
+    if (getHolidayOrWeekendName(simulatedDate)) {
+      return [];
+    }
     return employees.filter(emp => {
       if (todayCheckedInNames.has(emp.name.trim())) return false;
       if (todayAbsentNames.has(emp.name.trim())) return false;
