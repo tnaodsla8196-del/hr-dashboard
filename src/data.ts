@@ -569,25 +569,75 @@ export function parseCSVToCommuteRecords(csvText: string): CommuteRecord[] {
     return result;
   };
 
+  const rawHeaders = parseRow(lines[0]);
+  const mapping: { [key in keyof CommuteRecord]?: number } = {};
+
+  const findHeaderIndex = (keywords: string[]): number => {
+    return rawHeaders.findIndex(header => {
+      const lowerHeader = header.toLowerCase().replace(/\s+/g, '');
+      return keywords.some(kw => lowerHeader.includes(kw.toLowerCase()));
+    });
+  };
+
+  const keywordMap: { [key in keyof CommuteRecord]: string[] } = {
+    no: ['번호', 'no'],
+    date: ['일자', '날짜', 'date'],
+    department: ['부서명', '부서', 'dept', 'department'],
+    position: ['직급', '직책', '직위', 'rank', 'position'],
+    name: ['성명', '이름', '사원명', 'name'],
+    sapId: ['erp사번', '사번', 'sapid', 'empid'],
+    startTime: ['출근일시', '출근시각', '출근', 'starttime'],
+    endTime: ['퇴근일시', '퇴근시각', '퇴근', 'endtime'],
+    category: ['근태항목', '지각여부', '분류', 'category'],
+    type: ['근태구분', '근무타입', 'type'],
+    detail: ['신청내역', '정상여부', '내역', '상세', 'detail']
+  };
+
+  Object.keys(keywordMap).forEach(key => {
+    const field = key as keyof CommuteRecord;
+    const idx = findHeaderIndex(keywordMap[field]);
+    if (idx !== -1) {
+      mapping[field] = idx;
+    }
+  });
+
   const records: CommuteRecord[] = [];
   for (let i = 1; i < lines.length; i++) {
     const rawCells = parseRow(lines[i]);
-    if (rawCells.length < 6) continue;
+    if (rawCells.length < 2) continue;
 
-    const no = rawCells[0]?.replace(/"/g, '') || '';
-    const date = rawCells[1]?.replace(/"/g, '') || '';
-    let department = rawCells[2]?.replace(/"/g, '') || '';
+    const getVal = (field: keyof CommuteRecord, defaultVal: string = ''): string => {
+      const idx = mapping[field];
+      if (idx !== undefined && idx < rawCells.length) {
+        return rawCells[idx];
+      }
+      return defaultVal;
+    };
+
+    const no = getVal('no', String(i));
+    const date = getVal('date');
+    let department = getVal('department');
     if (department && department.includes('노랑통닭 강남구청점')) {
       department = department.replace('노랑통닭 강남구청점', '강남구청점');
     }
-    const position = rawCells[3]?.replace(/"/g, '') || '';
-    const name = rawCells[4]?.replace(/"/g, '') || '';
-    const sapId = rawCells[5]?.replace(/"/g, '') || '';
-    const startTime = rawCells[6]?.replace(/"/g, '') || '';
-    const endTime = rawCells[7]?.replace(/"/g, '') || '';
-    const category = rawCells[8]?.replace(/"/g, '') || '';
-    const type = rawCells[9]?.replace(/"/g, '') || '';
-    const detail = rawCells[10]?.replace(/"/g, '') || '';
+    const position = getVal('position');
+    const name = getVal('name');
+    const sapId = getVal('sapId');
+    const startTime = getVal('startTime');
+    const endTime = getVal('endTime');
+    const category = getVal('category');
+    const type = getVal('type');
+    const detail = getVal('detail');
+
+    // Extract time (HH:MM) from full date-time if needed
+    const extractTime = (val: string): string => {
+      if (!val) return '';
+      const match = val.match(/(\d{1,2}):(\d{2})/);
+      if (match) {
+        return `${match[1].padStart(2, '0')}:${match[2]}`;
+      }
+      return val;
+    };
 
     records.push({
       no,
@@ -596,8 +646,8 @@ export function parseCSVToCommuteRecords(csvText: string): CommuteRecord[] {
       position,
       name,
       sapId,
-      startTime,
-      endTime,
+      startTime: extractTime(startTime),
+      endTime: extractTime(endTime),
       category,
       type,
       detail
