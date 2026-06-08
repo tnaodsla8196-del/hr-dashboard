@@ -184,6 +184,14 @@ export function calculateWeeklyHours(
     if (retireStr && weekStartStr >= retireStr) {
       return false; // retired before this week
     }
+
+    // Join check: If the employee hasn't joined by the end of this week, they are not active for this week
+    if (emp.joinDate && emp.joinDate.trim()) {
+      const joinStr = emp.joinDate.trim();
+      if (joinStr > weekEndStr) {
+        return false; // joined after this week
+      }
+    }
     
     return true;
   });
@@ -220,6 +228,15 @@ export function calculateWeeklyHours(
       if (retireStr && dayStr >= retireStr) {
         dailyHours[dayStr] = { hours: 0, isTrip: false, isLeave: false, startTime: '', endTime: '' };
         return;
+      }
+
+      // Check if employee has joined by this specific day
+      if (emp.joinDate && emp.joinDate.trim()) {
+        const joinStr = emp.joinDate.trim();
+        if (dayStr < joinStr) {
+          dailyHours[dayStr] = { hours: 0, isTrip: false, isLeave: false, startTime: '', endTime: '' };
+          return;
+        }
       }
 
       const dbDateStr = dayStr.replace(/-/g, '');

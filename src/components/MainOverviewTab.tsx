@@ -5,16 +5,25 @@
 
 import React, { useState } from 'react';
 import { HelpCircle, AlertTriangle, CheckCircle2, AlertCircle, ShieldAlert, Activity, TrendingUp } from 'lucide-react';
-import { AttendanceRecord, CommuteRecord } from '../types';
+import { AttendanceRecord, CommuteRecord, EmployeeStatusRecord } from '../types';
 
 interface MainOverviewTabProps {
   records: AttendanceRecord[];
   allRecords: AttendanceRecord[];
   simulatedDate: string;
   commuteRecords?: CommuteRecord[];
+  allEmployees?: EmployeeStatusRecord[];
+  retiredEmployees?: Record<string, string>;
 }
 
-export const MainOverviewTab: React.FC<MainOverviewTabProps> = ({ records, allRecords, simulatedDate, commuteRecords = [] }) => {
+export const MainOverviewTab: React.FC<MainOverviewTabProps> = ({ 
+  records, 
+  allRecords, 
+  simulatedDate, 
+  commuteRecords = [],
+  allEmployees = [],
+  retiredEmployees = {}
+}) => {
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
 
   // --- CHART 1: Donut Chart Calculations (근태구분 비율) ---
@@ -50,18 +59,44 @@ export const MainOverviewTab: React.FC<MainOverviewTabProps> = ({ records, allRe
   let accumulatedPercent = 0;
 
   // --- CALCULATE: Department-wise Annual Leave Usage Rates ---
-  // Unique employee map per department
+  // Unique employee map per department, using master list and filtering by active status at simulatedDate
   const deptEmployeeMap = React.useMemo(() => {
     const map: Record<string, Set<string>> = {};
-    allRecords.forEach(rec => {
-      if (rec.sapId && rec.department) {
-        const dept = rec.department.trim() || '미정';
-        if (!map[dept]) map[dept] = new Set();
-        map[dept].add(rec.sapId);
+    
+    // If allEmployees is not provided (fallback), scan allRecords
+    if (!allEmployees || allEmployees.length === 0) {
+      allRecords.forEach(rec => {
+        if (rec.sapId && rec.department) {
+          const dept = rec.department.trim() || '미정';
+          if (dept.includes('강남구청점') || dept.includes('전환관리파트') || dept.includes('임원실')) return;
+          if (!map[dept]) map[dept] = new Set();
+          map[dept].add(rec.sapId);
+        }
+      });
+      return map;
+    }
+
+    allEmployees.forEach(emp => {
+      const dept = emp.department?.trim() || '미정';
+      if (dept.includes('강남구청점') || dept.includes('전환관리파트') || dept.includes('임원실')) return;
+
+      // Retirement check
+      const retireDate = retiredEmployees?.[emp.name.trim()] || emp.retirementDate;
+      if (retireDate && retireDate.trim() && simulatedDate >= retireDate.trim()) {
+        return; // Retired by simulatedDate
       }
+
+      // Join date check
+      if (emp.joinDate && emp.joinDate.trim() && simulatedDate < emp.joinDate.trim()) {
+        return; // Not joined yet by simulatedDate
+      }
+
+      if (!map[dept]) map[dept] = new Set();
+      map[dept].add(emp.sapId.trim());
     });
+
     return map;
-  }, [allRecords]);
+  }, [allEmployees, retiredEmployees, allRecords, simulatedDate]);
 
   const activeMonth = React.useMemo(() => {
     if (simulatedDate) {

@@ -489,6 +489,9 @@ export default function App() {
         const retirementDate = retiredEmployees[emp.name.trim()];
         if (retirementDate && simulatedDate >= retirementDate) return false;
 
+        // Exclude employees who haven't joined yet
+        if (emp.joinDate && emp.joinDate.trim() && simulatedDate < emp.joinDate.trim()) return false;
+
         return true;
       })
       .map(emp => ({
@@ -996,6 +999,8 @@ export default function App() {
                 allRecords={records}
                 simulatedDate={simulatedDate}
                 commuteRecords={allCommuteRecords}
+                allEmployees={allEmployees}
+                retiredEmployees={retiredEmployees}
               />
             )}
 
