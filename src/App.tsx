@@ -285,6 +285,39 @@ export default function App() {
 
   // Global Multi-dimensional Filtration Engine
   const filteredRecords = useMemo(() => {
+    // 1. Resolve exact start/end range dates based on current filter configurations
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    let startRange = '';
+    let endRange = '';
+
+    if (timeFilter === 'monthly') {
+      if (selectedMonth !== 'all') {
+        const monthNum = parseInt(selectedMonth, 10);
+        const lastDay = new Date(currentYear, monthNum, 0).getDate();
+        startRange = `${currentYear}-${selectedMonth}-01`;
+        endRange = `${currentYear}-${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+      }
+    } else if (timeFilter === 'weekly') {
+      const activeMonth = selectedMonth !== 'all' ? parseInt(selectedMonth, 10) : currentMonth;
+      if (selectedWeek === 'all') {
+        const lastDay = new Date(currentYear, activeMonth, 0).getDate();
+        const monthStr = String(activeMonth).padStart(2, '0');
+        startRange = `${currentYear}-${monthStr}-01`;
+        endRange = `${currentYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+      } else {
+        const weekRanges = getWeekRanges(currentYear, activeMonth);
+        const targetWeek = weekRanges.find(w => w.key === selectedWeek);
+        if (targetWeek) {
+          startRange = targetWeek.startStr;
+          endRange = targetWeek.endStr;
+        }
+      }
+    } else if (timeFilter === 'custom') {
+      startRange = customStartDate;
+      endRange = customEndDate;
+    }
+
     return records.filter(rec => {
       // 1. Department match
       if (selectedDept !== 'all' && rec.department !== selectedDept) {
@@ -308,58 +341,13 @@ export default function App() {
         }
       }
 
-      // 3. Period/Dates filter logic
-      if (timeFilter === 'monthly') {
-        if (selectedMonth !== 'all') {
-          // Check if applyDate or startDate falls into the selected month index (e.g. '05')
-          const monthStr = `-${selectedMonth}-`;
-          const matchesApply = rec.applyDate?.includes(monthStr);
-          const matchesStart = rec.startDate?.includes(monthStr);
-          if (!matchesApply && !matchesStart) {
-            return false;
-          }
-        }
-      } else if (timeFilter === 'weekly') {
-        // Month filter
-        if (selectedMonth !== 'all') {
-          const monthStr = `-${selectedMonth}-`;
-          const matchesApply = rec.applyDate?.includes(monthStr);
-          const matchesStart = rec.startDate?.includes(monthStr);
-          if (!matchesApply && !matchesStart) {
-            return false;
-          }
-        }
-        
-        // Week filter using actual calendar week ranges
-        if (selectedWeek !== 'all') {
-          const currentYear = new Date().getFullYear();
-          const currentMonth = new Date().getMonth() + 1;
-          const activeMonth = selectedMonth !== 'all' ? parseInt(selectedMonth) : currentMonth;
-          
-          const weekRanges = getWeekRanges(currentYear, activeMonth);
-          const targetWeek = weekRanges.find(w => w.key === selectedWeek);
-          
-          if (targetWeek) {
-            const targetDate = rec.startDate || rec.applyDate;
-            if (targetDate) {
-              if (targetDate < targetWeek.startStr || targetDate > targetWeek.endStr) {
-                return false;
-              }
-            } else {
-              return false;
-            }
-          } else {
-            return false;
-          }
-        }
-      } else if (timeFilter === 'custom') {
-        const startRange = customStartDate;
-        const endRange = customEndDate;
+      // 3. Period/Dates filter logic (Strict Date Overlap Check)
+      if (startRange && endRange) {
         const recStart = rec.startDate || rec.applyDate;
         const recEnd = rec.endDate || rec.startDate || rec.applyDate;
-        if (recStart && recEnd && startRange && endRange) {
+        if (recStart && recEnd) {
           // Overlap condition:
-          // Record starts before/on range end, and ends after/on range start.
+          // Record starts before or on filter end date, AND ends after or on filter start date.
           if (recStart > endRange || recEnd < startRange) {
             return false;
           }
