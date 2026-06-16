@@ -286,36 +286,39 @@ export default function App() {
   // Global Multi-dimensional Filtration Engine
   const filteredRecords = useMemo(() => {
     // 1. Resolve exact start/end range dates based on current filter configurations
-    const currentYear = new Date().getFullYear();
+    const currentYear = 2026; // The current system year in use is 2026
     const currentMonth = new Date().getMonth() + 1;
-    let startRange = '';
-    let endRange = '';
+    let filterStartDate = '';
+    let filterEndDate = '';
 
     if (timeFilter === 'monthly') {
-      if (selectedMonth !== 'all') {
+      if (selectedMonth === 'all') {
+        filterStartDate = `${currentYear}-01-01`;
+        filterEndDate = `${currentYear}-12-31`;
+      } else {
         const monthNum = parseInt(selectedMonth, 10);
         const lastDay = new Date(currentYear, monthNum, 0).getDate();
-        startRange = `${currentYear}-${selectedMonth}-01`;
-        endRange = `${currentYear}-${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+        filterStartDate = `${currentYear}-${selectedMonth}-01`;
+        filterEndDate = `${currentYear}-${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
       }
     } else if (timeFilter === 'weekly') {
       const activeMonth = selectedMonth !== 'all' ? parseInt(selectedMonth, 10) : currentMonth;
       if (selectedWeek === 'all') {
         const lastDay = new Date(currentYear, activeMonth, 0).getDate();
         const monthStr = String(activeMonth).padStart(2, '0');
-        startRange = `${currentYear}-${monthStr}-01`;
-        endRange = `${currentYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+        filterStartDate = `${currentYear}-${monthStr}-01`;
+        filterEndDate = `${currentYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
       } else {
         const weekRanges = getWeekRanges(currentYear, activeMonth);
         const targetWeek = weekRanges.find(w => w.key === selectedWeek);
         if (targetWeek) {
-          startRange = targetWeek.startStr;
-          endRange = targetWeek.endStr;
+          filterStartDate = targetWeek.startStr;
+          filterEndDate = targetWeek.endStr;
         }
       }
     } else if (timeFilter === 'custom') {
-      startRange = customStartDate;
-      endRange = customEndDate;
+      filterStartDate = customStartDate;
+      filterEndDate = customEndDate;
     }
 
     return records.filter(rec => {
@@ -341,15 +344,22 @@ export default function App() {
         }
       }
 
-      // 3. Period/Dates filter logic (Strict Date Overlap Check)
-      if (startRange && endRange) {
-        const recStart = rec.startDate || rec.applyDate;
-        const recEnd = rec.endDate || rec.startDate || rec.applyDate;
-        if (recStart && recEnd) {
-          // Overlap condition:
-          // Record starts before or on filter end date, AND ends after or on filter start date.
-          if (recStart > endRange || recEnd < startRange) {
-            return false;
+      // 3. Period/Dates filter logic (Strict Date Range Check - Completely Contained)
+      if (filterStartDate && filterEndDate) {
+        const recStartStr = rec.startDate || rec.applyDate;
+        const recEndStr = rec.endDate || rec.startDate || rec.applyDate;
+        if (recStartStr && recEndStr) {
+          const filterStart = new Date(filterStartDate).getTime();
+          const filterEnd = new Date(filterEndDate).getTime();
+          const recStart = new Date(recStartStr).getTime();
+          const recEnd = new Date(recEndStr).getTime();
+
+          if (!isNaN(filterStart) && !isNaN(filterEnd) && !isNaN(recStart) && !isNaN(recEnd)) {
+            // Completely contained check:
+            // Record start date must be >= filter start date AND record end date must be <= filter end date.
+            if (recStart < filterStart || recEnd > filterEnd) {
+              return false;
+            }
           }
         }
       }
