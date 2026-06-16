@@ -422,8 +422,8 @@ export function parseCSVToRecords(csvText: string): AttendanceRecord[] {
     if (period) {
       const matches = period.match(/(\d{4}[-/.]\d{2}[-/.]\d{2})/g);
       if (matches && matches.length >= 1) {
-        parsedStartDate = matches[0].replace(/\./g, '-');
-        parsedEndDate = (matches.length >= 2 ? matches[1] : matches[0]).replace(/\./g, '-');
+        parsedStartDate = matches[0].replace(/[\/\.]/g, '-');
+        parsedEndDate = (matches.length >= 2 ? matches[1] : matches[0]).replace(/[\/\.]/g, '-');
       }
     }
 

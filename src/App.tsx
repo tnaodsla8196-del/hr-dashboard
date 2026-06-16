@@ -285,6 +285,22 @@ export default function App() {
 
   // Global Multi-dimensional Filtration Engine
   const filteredRecords = useMemo(() => {
+    // Robust, browser-consistent local midnight date parser to avoid timezone offset mismatches
+    const parseLocalDate = (dateStr: string): number => {
+      if (!dateStr) return NaN;
+      const clean = dateStr.replace(/[\/\.]/g, '-').trim();
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return new Date(y, m, d).getTime();
+        }
+      }
+      return new Date(clean).getTime();
+    };
+
     // 1. Resolve exact start/end range dates based on current filter configurations
     const currentYear = 2026; // The current system year in use is 2026
     const currentMonth = new Date().getMonth() + 1;
@@ -349,10 +365,10 @@ export default function App() {
         const recStartStr = rec.startDate || rec.applyDate;
         const recEndStr = rec.endDate || rec.startDate || rec.applyDate;
         if (recStartStr && recEndStr) {
-          const filterStart = new Date(filterStartDate).getTime();
-          const filterEnd = new Date(filterEndDate).getTime();
-          const recStart = new Date(recStartStr).getTime();
-          const recEnd = new Date(recEndStr).getTime();
+          const filterStart = parseLocalDate(filterStartDate);
+          const filterEnd = parseLocalDate(filterEndDate);
+          const recStart = parseLocalDate(recStartStr);
+          const recEnd = parseLocalDate(recEndStr);
 
           if (!isNaN(filterStart) && !isNaN(filterEnd) && !isNaN(recStart) && !isNaN(recEnd)) {
             // Completely contained check:
