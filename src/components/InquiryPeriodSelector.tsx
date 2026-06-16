@@ -37,6 +37,9 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
   inquiryPeriodText,
   themeColor = 'blue'
 }) => {
+  const [tempStartDate, setTempStartDate] = useState(customStartDate);
+  const [tempEndDate, setTempEndDate] = useState(customEndDate);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -52,6 +55,14 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Sync temp dates when popover opens or prop dates change
+  useEffect(() => {
+    if (isOpen) {
+      setTempStartDate(customStartDate);
+      setTempEndDate(customEndDate);
+    }
+  }, [customStartDate, customEndDate, isOpen]);
+
   // Close popover on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,7 +74,7 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isOpen]);
 
   const badgeColorClass = {
     blue: 'text-blue-705 bg-blue-50/70 hover:bg-blue-100 border-blue-200/60',
@@ -208,8 +219,8 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
                     <label className="block text-[10px] font-bold text-slate-400 uppercase">시작일</label>
                     <input
                       type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      value={tempStartDate}
+                      onChange={(e) => setTempStartDate(e.target.value)}
                       className="w-full text-xs border border-slate-200 bg-white rounded-lg p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                     />
                   </div>
@@ -217,8 +228,8 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
                     <label className="block text-[10px] font-bold text-slate-400 uppercase">종료일</label>
                     <input
                       type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      value={tempEndDate}
+                      onChange={(e) => setTempEndDate(e.target.value)}
                       className="w-full text-xs border border-slate-200 bg-white rounded-lg p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                     />
                   </div>
@@ -230,7 +241,13 @@ export const InquiryPeriodSelector: React.FC<InquiryPeriodSelectorProps> = ({
           {/* Confirm Button */}
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              if (timeFilter === 'custom') {
+                setCustomStartDate(tempStartDate);
+                setCustomEndDate(tempEndDate);
+              }
+              setIsOpen(false);
+            }}
             className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />

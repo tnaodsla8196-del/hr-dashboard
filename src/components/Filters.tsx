@@ -50,6 +50,17 @@ export const Filters: React.FC<FiltersProps> = ({
   availableDepts
 }) => {
 
+  const [tempStartDate, setTempStartDate] = React.useState(customStartDate);
+  const [tempEndDate, setTempEndDate] = React.useState(customEndDate);
+
+  React.useEffect(() => {
+    setTempStartDate(customStartDate);
+  }, [customStartDate]);
+
+  React.useEffect(() => {
+    setTempEndDate(customEndDate);
+  }, [customEndDate]);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // 1-12
 
@@ -195,20 +206,32 @@ export const Filters: React.FC<FiltersProps> = ({
             )}
 
             {timeFilter === 'custom' && (
-              <div className="flex items-center gap-1.5 animate-fade-in">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-full text-xs font-semibold bg-white border border-slate-200 text-slate-800 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                />
-                <span className="text-xs text-slate-400 font-bold">~</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-full text-xs font-semibold bg-white border border-slate-200 text-slate-800 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                />
+              <div className="flex items-center gap-2 animate-fade-in flex-wrap sm:flex-nowrap w-full">
+                <div className="flex items-center gap-1.5 flex-1">
+                  <input
+                    type="date"
+                    value={tempStartDate}
+                    onChange={(e) => setTempStartDate(e.target.value)}
+                    className="w-full text-xs font-semibold bg-white border border-slate-200 text-slate-800 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                  />
+                  <span className="text-xs text-slate-400 font-bold">~</span>
+                  <input
+                    type="date"
+                    value={tempEndDate}
+                    onChange={(e) => setTempEndDate(e.target.value)}
+                    className="w-full text-xs font-semibold bg-white border border-slate-200 text-slate-800 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomStartDate(tempStartDate);
+                    setCustomEndDate(tempEndDate);
+                  }}
+                  className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-lg shadow-sm transition cursor-pointer shrink-0 font-sans"
+                >
+                  적용
+                </button>
               </div>
             )}
             
